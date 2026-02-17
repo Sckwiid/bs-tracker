@@ -52,6 +52,13 @@ export interface ProPlayerRow {
   updated_at: string;
 }
 
+export interface MetaTierRow {
+  id: string | number;
+  brawler_name: string;
+  tier: "S" | "A" | "B" | "C";
+  mode: string;
+}
+
 let singleton: SupabaseClient | null = null;
 
 export function getSupabaseAdmin(): SupabaseClient | null {
@@ -108,4 +115,69 @@ export async function getTopProPlayersByEarnings(limit = 10): Promise<ProPlayerR
     throw new Error(`Supabase read top earnings error: ${query.error.message}`);
   }
   return (query.data as ProPlayerRow[]) ?? [];
+}
+
+export async function getMetaTierlist(mode?: string): Promise<MetaTierRow[]> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return [];
+
+  let query = supabase
+    .from("meta_tierlist")
+    .select("id,brawler_name,tier,mode")
+    .order("tier", { ascending: true })
+    .order("brawler_name", { ascending: true });
+
+  if (mode && mode.trim()) {
+    query = query.eq("mode", mode.trim());
+  }
+
+  const result = await query;
+  if (result.error) {
+    throw new Error(`Supabase read meta_tierlist error: ${result.error.message}`);
+  }
+  return (result.data as MetaTierRow[]) ?? [];
+}
+
+export async function upsertMetaTierEntry(payload: {
+  brawlerName: string;
+  tier: "S" | "A" | "B" | "C";
+  mode: string;
+}): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    throw new Error("Supabase non configuré.");
+  }
+
+  const existing = await supabase
+    .from("meta_tierlist")
+    .select("id")
+    .eq("brawler_name", payload.brawlerName)
+    .eq("mode", payload.mode)
+    .maybeSingle();
+
+  if (existing.error && existing.error.code !== "PGRST116") {
+    throw new Error(`Supabase read meta_tierlist error: ${existing.error.message}`);
+  }
+
+  if (existing.data?.id !== undefined && existing.data?.id !== null) {
+    const update = await supabase
+      .from("meta_tierlist")
+      .update({
+        tier: payload.tier
+      })
+      .eq("id", existing.data.id);
+    if (update.error) {
+      throw new Error(`Supabase update meta_tierlist error: ${update.error.message}`);
+    }
+    return;
+  }
+
+  const insert = await supabase.from("meta_tierlist").insert({
+    brawler_name: payload.brawlerName,
+    tier: payload.tier,
+    mode: payload.mode
+  });
+  if (insert.error) {
+    throw new Error(`Supabase insert meta_tierlist error: ${insert.error.message}`);
+  }
 }

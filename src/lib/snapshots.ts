@@ -3,21 +3,42 @@ import "server-only";
 import crypto from "node:crypto";
 
 import { getPlayer, getPlayerBattlelog } from "@/lib/brawlApi";
-import { calculateWinrate25, estimatePlayerPlaytime, topPlayedBrawlers, WinrateSummary } from "@/lib/metrics";
+import {
+  calculateWinrate25,
+  estimateAccountValue,
+  estimatePlayerPlaytime,
+  extractRankedElo,
+  topPlayedBrawlers,
+  WinrateBreakdown
+} from "@/lib/metrics";
 import { getProPlayerByTag, getSupabaseAdmin, HistoryRow, PlayerRow, ProPlayerRow, todayUtcDate } from "@/lib/supabase";
 import { normalizeTag } from "@/lib/utils";
 import { BattleItem, Player } from "@/types/brawl";
 
+const SUPABASE_TIMEOUT_MS = 2500;
+
 export interface SnapshotBundle {
   player: Player;
   battlelog: BattleItem[];
-  winrate25: WinrateSummary;
-  estimatedPlaytimeMinutes: number;
+  winrates25: WinrateBreakdown;
+  estimatedPlaytimeHours: number;
+  accountValueGems: number;
+  rankedElo: number;
   topBrawlers: ReturnType<typeof topPlayedBrawlers>;
   history: HistoryRow[];
   isProVerified: boolean;
   proProfile: ProPlayerRow | null;
   changed: boolean;
+}
+
+async function withDbTimeout<T>(task: Promise<T>, timeoutMs = SUPABASE_TIMEOUT_MS): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Supabase timeout after ${timeoutMs}ms`)), timeoutMs);
+    task
+      .then((value) => resolve(value))
+      .catch((error) => reject(error))
+      .finally(() => clearTimeout(timer));
+  });
 }
 
 function snapshotHash(player: Player): string {
@@ -135,18 +156,22 @@ async function getHistory(tag: string): Promise<HistoryRow[]> {
 export async function fetchAndStorePlayerSnapshot(tag: string): Promise<SnapshotBundle> {
   const normalizedTag = normalizeTag(tag);
   const [player, battlelog] = await Promise.all([getPlayer(normalizedTag), getPlayerBattlelog(normalizedTag, 25)]);
-  const winrate25 = calculateWinrate25(battlelog);
-  const estimatedPlaytimeMinutes = estimatePlayerPlaytime(player);
+  const winrates25 = calculateWinrate25(battlelog);
+  const estimatedPlaytimeHours = estimatePlayerPlaytime(player);
+  const estimatedPlaytimeMinutes = Number((estimatedPlaytimeHours * 60).toFixed(2));
+  const accountValueGems = estimateAccountValue(player);
+  const rankedElo = extractRankedElo(player);
   const topBrawlers = topPlayedBrawlers(player.brawlers, 10);
   const hash = snapshotHash(player);
+  const persistedWinrate = winrates25.rankedWinrate ?? winrates25.ladderWinrate ?? winrates25.overall.winrate;
 
   let changed = true;
   try {
-    const previous = await getPlayerRow(normalizedTag);
+    const previous = await withDbTimeout(getPlayerRow(normalizedTag));
     changed = !previous || previous.last_snapshot_hash !== hash;
-    await upsertPlayer(player, hash, winrate25.winrate, estimatedPlaytimeMinutes);
+    await withDbTimeout(upsertPlayer(player, hash, persistedWinrate, estimatedPlaytimeMinutes));
     if (changed) {
-      await upsertDailyHistory(player, estimatedPlaytimeMinutes, winrate25.winrate);
+      await withDbTimeout(upsertDailyHistory(player, estimatedPlaytimeMinutes, persistedWinrate));
     }
   } catch (error) {
     console.error("Snapshot write skipped:", error);
@@ -154,14 +179,14 @@ export async function fetchAndStorePlayerSnapshot(tag: string): Promise<Snapshot
 
   let history: HistoryRow[] = [];
   try {
-    history = await getHistory(normalizedTag);
+    history = await withDbTimeout(getHistory(normalizedTag));
   } catch (error) {
     console.error("History read skipped:", error);
   }
 
   let proProfile: ProPlayerRow | null = null;
   try {
-    proProfile = await getProPlayerByTag(normalizedTag);
+    proProfile = await withDbTimeout(getProPlayerByTag(normalizedTag));
   } catch (error) {
     console.error("Pro status read skipped:", error);
   }
@@ -169,8 +194,10 @@ export async function fetchAndStorePlayerSnapshot(tag: string): Promise<Snapshot
   return {
     player,
     battlelog,
-    winrate25,
-    estimatedPlaytimeMinutes,
+    winrates25,
+    estimatedPlaytimeHours,
+    accountValueGems,
+    rankedElo,
     topBrawlers,
     history,
     isProVerified: Boolean(proProfile),

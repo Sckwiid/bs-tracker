@@ -50,6 +50,14 @@ create table if not exists public.pro_players (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.meta_tierlist (
+  id bigserial primary key,
+  brawler_name text not null,
+  tier text not null check (tier in ('S', 'A', 'B', 'C')),
+  mode text not null,
+  created_at timestamptz not null default now()
+);
+
 create index if not exists idx_history_player_tag_created_at
   on public.history(player_tag, created_at desc);
 
@@ -59,6 +67,7 @@ create index if not exists idx_players_trophies
 alter table public.players enable row level security;
 alter table public.history enable row level security;
 alter table public.pro_players enable row level security;
+alter table public.meta_tierlist enable row level security;
 
 drop policy if exists "players read all" on public.players;
 create policy "players read all"
@@ -73,4 +82,9 @@ create policy "history read all"
 drop policy if exists "pro players read all" on public.pro_players;
 create policy "pro players read all"
   on public.pro_players for select
+  using (true);
+
+drop policy if exists "meta tierlist read all" on public.meta_tierlist;
+create policy "meta tierlist read all"
+  on public.meta_tierlist for select
   using (true);

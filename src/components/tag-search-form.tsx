@@ -37,7 +37,9 @@ export function TagSearchForm({ placeholder = "#PLAYER", defaultValue = "", clas
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!tag.trim()) return;
-    const cleanTag = normalizeTag(tag);
+    const normalizedRaw = tag.replace("#", "").trim().toUpperCase();
+    if (!normalizedRaw) return;
+    const cleanTag = normalizeTag(normalizedRaw);
     persistRecent(cleanTag);
     router.push(`/player/${encodeURIComponent(cleanTag)}`);
   }

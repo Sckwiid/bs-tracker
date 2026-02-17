@@ -1,7 +1,4 @@
-import Image from "next/image";
-
 import { BrawlerStat } from "@/types/brawl";
-import { toBrawlerSlug } from "@/lib/utils";
 
 interface BrawlerCardProps {
   brawler: BrawlerStat;
@@ -12,7 +9,7 @@ interface BrawlerCardProps {
 export function BrawlerCard({ brawler, name, proVerified = false }: BrawlerCardProps) {
   const gadgets = brawler.gadgets?.length ?? 0;
   const starPowers = brawler.starPowers?.length ?? 0;
-  const image = `https://cdn.brawlify.com/brawlers/borderless/${toBrawlerSlug(name)}.png`;
+  const image = `https://cdn.brawlify.com/brawlers/icons/${brawler.id}.png`;
 
   return (
     <article className="relative rounded-2xl border border-slate-700/70 bg-surface-900/80 p-4">
@@ -22,8 +19,8 @@ export function BrawlerCard({ brawler, name, proVerified = false }: BrawlerCardP
         </span>
       ) : null}
       <div className="flex items-center gap-3">
-        <div className="relative h-14 w-14 overflow-hidden rounded-xl border border-slate-700/80 bg-surface-900">
-          <Image src={image} alt={name} fill className="object-cover" />
+        <div className="h-14 w-14 overflow-hidden rounded-xl border border-slate-700/80 bg-surface-900">
+          <img src={image} alt={name} className="h-full w-full object-cover" />
         </div>
         <div>
           <h3 className="font-semibold text-white">{name}</h3>

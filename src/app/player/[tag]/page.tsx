@@ -78,6 +78,7 @@ export async function generateMetadata({ params }: PlayerPageProps): Promise<Met
 }
 
 export const revalidate = 20;
+export const dynamic = "force-dynamic";
 
 export default async function PlayerPage({ params }: PlayerPageProps) {
   const tag = normalizeTag(decodeURIComponent(params.tag));
@@ -111,7 +112,7 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
           </div>
         </header>
 
-        <section className="grid gap-3 md:grid-cols-3">
+        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <article className="rounded-xl border border-slate-700 bg-surface-900/75 p-4">
             <p className="text-xs uppercase tracking-widest text-slate-400">Ladder</p>
             <p className="mt-2 text-3xl font-bold text-neon-cyan">{formatNumber(player.trophies)}</p>
@@ -126,17 +127,27 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
           </article>
           <article className="rounded-xl border border-slate-700 bg-surface-900/75 p-4">
             <p className="text-xs uppercase tracking-widest text-slate-400">Performance</p>
-            <p className="mt-2 text-2xl font-bold text-neon-cyan">{bundle.winrate25.winrate}%</p>
-            <p className="text-sm text-slate-300">Winrate sur 25 matchs</p>
-            <p className="text-sm text-slate-300">Temps estimé: {Math.round(bundle.estimatedPlaytimeMinutes)} min</p>
+            <p className="mt-2 text-2xl font-bold text-neon-cyan">
+              {bundle.winrates25.rankedWinrate === null ? "N/A" : `${bundle.winrates25.rankedWinrate}%`}
+            </p>
+            <p className="text-sm text-slate-300">Winrate classé (25 derniers matchs)</p>
+            <p className="text-sm text-slate-300">Temps estimé: {bundle.estimatedPlaytimeHours.toFixed(1)} h</p>
+          </article>
+          <article className="rounded-xl border border-neon-cyan/40 bg-surface-900/75 p-4">
+            <p className="text-xs uppercase tracking-widest text-slate-400">Valeur du compte</p>
+            <p className="mt-2 text-2xl font-bold text-neon-cyan">💎 {formatNumber(bundle.accountValueGems)}</p>
+            <p className="text-sm text-slate-300">Estimation gemmes (brawlers + power 11)</p>
           </article>
         </section>
 
         <PlayerTabs
           topBrawlers={bundle.topBrawlers}
           allBrawlers={player.brawlers}
-          winrate25={bundle.winrate25}
-          estimatedPlaytimeMinutes={bundle.estimatedPlaytimeMinutes}
+          winrates25={bundle.winrates25}
+          estimatedPlaytimeHours={bundle.estimatedPlaytimeHours}
+          trophiesCurrent={player.trophies}
+          victories3v3={player["3vs3Victories"] ?? 0}
+          rankedElo={bundle.rankedElo}
           history={bundle.history}
           proVerified={bundle.isProVerified}
         />

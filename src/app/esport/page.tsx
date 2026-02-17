@@ -9,6 +9,7 @@ import { getTopProPlayersByEarnings } from "@/lib/supabase";
 import { formatNumber } from "@/lib/utils";
 
 export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "E-sport Hub Brawl Stars",

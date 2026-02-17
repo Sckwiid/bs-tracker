@@ -177,8 +177,10 @@ export async function GET(request: NextRequest) {
       getHistoryForTags(leftTag, rightTag)
     ]);
 
-    const leftWinrate = calculateWinrate25(leftBattles).winrate;
-    const rightWinrate = calculateWinrate25(rightBattles).winrate;
+    const leftBreakdown = calculateWinrate25(leftBattles);
+    const rightBreakdown = calculateWinrate25(rightBattles);
+    const leftWinrate = leftBreakdown.rankedWinrate ?? leftBreakdown.ladderWinrate ?? leftBreakdown.overall.winrate;
+    const rightWinrate = rightBreakdown.rankedWinrate ?? rightBreakdown.ladderWinrate ?? rightBreakdown.overall.winrate;
     const sharedClubsSet = new Set(sharedClubsFromHistory(history, leftTag, rightTag));
     const leftCurrentClub = leftPlayer.club?.name?.trim() || leftPlayer.club?.tag?.trim() || "";
     const rightCurrentClub = rightPlayer.club?.name?.trim() || rightPlayer.club?.tag?.trim() || "";

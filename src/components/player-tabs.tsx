@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { BrawlerCard } from "@/components/BrawlerCard";
-import { PlayedBrawler, WinrateSummary } from "@/lib/metrics";
+import { PlayedBrawler, WinrateBreakdown } from "@/lib/metrics";
 import { HistoryRow } from "@/lib/supabase";
+import { formatRank } from "@/lib/utils";
 import { BrawlerStat } from "@/types/brawl";
 
 type TabKey = "ladder" | "ranked" | "history";
@@ -13,8 +14,11 @@ type TabKey = "ladder" | "ranked" | "history";
 interface PlayerTabsProps {
   topBrawlers: PlayedBrawler[];
   allBrawlers: BrawlerStat[];
-  winrate25: WinrateSummary;
-  estimatedPlaytimeMinutes: number;
+  winrates25: WinrateBreakdown;
+  estimatedPlaytimeHours: number;
+  trophiesCurrent: number;
+  victories3v3: number;
+  rankedElo: number;
   history: HistoryRow[];
   proVerified?: boolean;
 }
@@ -36,8 +40,11 @@ function brawlerName(name: BrawlerStat["name"], fallback: number): string {
 export function PlayerTabs({
   topBrawlers,
   allBrawlers,
-  winrate25,
-  estimatedPlaytimeMinutes,
+  winrates25,
+  estimatedPlaytimeHours,
+  trophiesCurrent,
+  victories3v3,
+  rankedElo,
   history,
   proVerified = false
 }: PlayerTabsProps) {
@@ -49,6 +56,11 @@ export function PlayerTabs({
     trophies: item.trophies,
     max: item.highest_trophies
   }));
+
+  const rankedValue = winrates25.rankedWinrate;
+  const ladderValue = winrates25.ladderWinrate;
+  const performanceIndex = trophiesCurrent > 0 ? Number(((victories3v3 * 100) / trophiesCurrent).toFixed(2)) : null;
+  const rankedLabel = formatRank(rankedElo);
 
   return (
     <section className="rounded-2xl border border-slate-700/70 bg-surface-900/70 p-5">
@@ -70,7 +82,7 @@ export function PlayerTabs({
       </div>
 
       {tab === "ladder" ? (
-        <div>
+        <div className="space-y-4">
           <h2 className="mb-3 text-lg font-bold text-white">Top 10 brawlers les plus joués</h2>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {topBrawlers.map((entry) => {
@@ -88,26 +100,44 @@ export function PlayerTabs({
               );
             })}
           </div>
+
+          <article className="rounded-xl border border-slate-700 bg-surface-900 p-4">
+            <h3 className="text-sm uppercase tracking-widest text-slate-400">Performance Récente</h3>
+            <p className="mt-2 text-sm text-slate-200">
+              Ladder Winrate (25 derniers matchs trophées):{" "}
+              {ladderValue === null ? "Aucun match récent" : `${ladderValue}%`}
+            </p>
+            <p className="text-sm text-slate-200">
+              Indice de Performance: {performanceIndex === null ? "N/A" : `${performanceIndex}%`}
+            </p>
+          </article>
         </div>
       ) : null}
 
       {tab === "ranked" ? (
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <article className="rounded-xl border border-slate-700 bg-surface-900 p-4">
-            <p className="text-xs uppercase tracking-widest text-slate-400">25 derniers matchs</p>
-            <p className="mt-2 text-3xl font-bold text-neon-cyan">{winrate25.winrate}%</p>
-            <p className="text-sm text-slate-300">Winrate</p>
+            <p className="text-xs uppercase tracking-widest text-slate-400">Rang Classé</p>
+            <p className="mt-2 text-3xl font-bold text-white">{rankedLabel}</p>
+            <p className="text-sm text-slate-300">{Math.max(0, Math.round(rankedElo))} ELO</p>
+          </article>
+          <article className="rounded-xl border border-slate-700 bg-surface-900 p-4">
+            <p className="text-xs uppercase tracking-widest text-slate-400">Winrate Classé (25 derniers matchs)</p>
+            <p className="mt-2 text-3xl font-bold text-neon-cyan">{rankedValue === null ? "N/A" : `${rankedValue}%`}</p>
+            <p className="text-sm text-slate-300">
+              {rankedValue === null ? "Aucun match récent classé" : "Performance classée"}
+            </p>
           </article>
           <article className="rounded-xl border border-slate-700 bg-surface-900 p-4">
             <p className="text-xs uppercase tracking-widest text-slate-400">Bilan</p>
-            <p className="mt-2 text-sm text-slate-200">Victoires: {winrate25.wins}</p>
-            <p className="text-sm text-slate-200">Défaites: {winrate25.losses}</p>
-            <p className="text-sm text-slate-200">Nuls: {winrate25.draws}</p>
+            <p className="mt-2 text-sm text-slate-200">Victoires: {winrates25.ranked.wins}</p>
+            <p className="text-sm text-slate-200">Défaites: {winrates25.ranked.losses}</p>
+            <p className="text-sm text-slate-200">Nuls: {winrates25.ranked.draws}</p>
           </article>
           <article className="rounded-xl border border-slate-700 bg-surface-900 p-4">
             <p className="text-xs uppercase tracking-widest text-slate-400">Temps estimé</p>
-            <p className="mt-2 text-2xl font-bold text-white">{Math.round(estimatedPlaytimeMinutes)} min</p>
-            <p className="text-sm text-slate-300">Formule: victories x 3.5</p>
+            <p className="mt-2 text-2xl font-bold text-white">{estimatedPlaytimeHours.toFixed(1)} h</p>
+            <p className="text-sm text-slate-300">Formule: (victoires x 3.5) / 60</p>
           </article>
         </div>
       ) : null}

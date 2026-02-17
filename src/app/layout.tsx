@@ -60,6 +60,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 <Link href="/meta" className="transition hover:text-neon-cyan">
                   Meta
                 </Link>
+                <Link href="/admin" className="transition hover:text-neon-cyan">
+                  Admin
+                </Link>
               </div>
             </nav>
           </header>
