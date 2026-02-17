@@ -167,7 +167,7 @@ async function hasHistory(tag: string): Promise<boolean> {
 
 export async function fetchAndStorePlayerSnapshot(tag: string): Promise<SnapshotBundle> {
   const normalizedTag = normalizeTag(tag);
-  const [player, battlelog] = await Promise.all([getPlayer(normalizedTag), getPlayerBattlelog(normalizedTag, 25)]);
+  const [player, battlelog] = await Promise.all([getPlayer(normalizedTag), getPlayerBattlelog(normalizedTag, 60)]);
   const winrates25 = calculateWinrate25(battlelog);
   const estimatedPlaytimeHours = estimatePlayerPlaytime(player);
   const estimatedPlaytimeMinutes = Number((estimatedPlaytimeHours * 60).toFixed(2));
@@ -195,6 +195,24 @@ export async function fetchAndStorePlayerSnapshot(tag: string): Promise<Snapshot
     history = await withDbTimeout(getHistory(normalizedTag));
   } catch (error) {
     console.error("History read skipped:", error);
+  }
+
+  if (history.length === 0) {
+    history = [
+      {
+        id: 0,
+        player_tag: normalizedTag,
+        snapshot_date: todayUtcDate(),
+        trophies: player.trophies,
+        highest_trophies: player.highestTrophies,
+        club_tag: player.club?.tag ?? null,
+        club_name: player.club?.name ?? "Bienvenue",
+        estimated_playtime_minutes: estimatedPlaytimeMinutes,
+        winrate_25: persistedWinrate,
+        raw_payload: player,
+        created_at: new Date().toISOString()
+      }
+    ];
   }
 
   let proProfile: ProPlayerRow | null = null;

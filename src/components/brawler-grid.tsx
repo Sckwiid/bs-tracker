@@ -1,7 +1,4 @@
-import Image from "next/image";
-
 import { BrawlerStat, BrawlerCatalogEntry } from "@/types/brawl";
-import { toBrawlerSlug } from "@/lib/utils";
 
 interface BrawlerGridProps {
   brawlers: BrawlerStat[];
@@ -33,13 +30,26 @@ export function BrawlerGrid({ brawlers, catalog }: BrawlerGridProps) {
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {ordered.map((brawler) => {
         const name = resolveName(brawler, nameById);
-        const imgSrc = `https://cdn.brawlify.com/brawlers/borderless/${toBrawlerSlug(name)}.png`;
+        const imgSrc = `https://cdn.brawlify.com/brawler/${brawler.id}.png`;
+        const fallbackSrc = "https://cdn.brawlify.com/brawler/16000000.png";
 
         return (
           <article key={brawler.id} className="rounded-xl border border-slate-700/80 bg-surface-900/70 p-3">
             <div className="flex items-center gap-3">
-              <div className="relative h-14 w-14 overflow-hidden rounded-lg border border-slate-700 bg-surface-800">
-                <Image src={imgSrc} alt={name} fill className="object-cover" />
+              <div className="h-14 w-14 overflow-hidden rounded-lg border border-slate-700 bg-surface-800">
+                <img
+                  src={imgSrc}
+                  alt={name}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                  onError={(event) => {
+                    const image = event.currentTarget;
+                    if (image.dataset.fallbackApplied === "1") return;
+                    image.dataset.fallbackApplied = "1";
+                    image.src = fallbackSrc;
+                  }}
+                />
               </div>
               <div>
                 <h3 className="font-semibold text-white">{name}</h3>

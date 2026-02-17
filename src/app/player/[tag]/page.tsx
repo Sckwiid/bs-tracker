@@ -88,6 +88,14 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
     const player = bundle.player;
     const currentRank = rankFromTrophies(player.trophies);
     const maxRank = rankFromTrophies(player.highestTrophies);
+    const rawPlayer = player as unknown as Record<string, unknown>;
+    const highestRankedRaw = rawPlayer.highestRankedTrophies ?? rawPlayer.rankedTrophies ?? 0;
+    const highestRankedTrophies =
+      typeof highestRankedRaw === "number"
+        ? highestRankedRaw
+        : Number.isFinite(Number(highestRankedRaw))
+          ? Number(highestRankedRaw)
+          : 0;
 
     return (
       <div className="space-y-6">
@@ -148,6 +156,7 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
           trophiesCurrent={player.trophies}
           victories3v3={player["3vs3Victories"] ?? 0}
           rankedElo={bundle.rankedElo}
+          highestRankedTrophies={highestRankedTrophies}
           history={bundle.history}
           proVerified={bundle.isProVerified}
         />

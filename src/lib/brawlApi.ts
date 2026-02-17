@@ -142,14 +142,22 @@ export async function getPlayer(tag: string): Promise<Player> {
 export async function getPlayerBattlelog(tag: string, limit = 25): Promise<BattleItem[]> {
   const safeTag = encodePlayerTag(tag);
   const data = await brawlFetch<BrawlListResponse<BattleItem>>(`/players/${safeTag}/battlelog`, 20);
-  return (data.items ?? []).slice(0, limit);
+  const items = data.items ?? [];
+  if (limit <= 0) return items;
+  return items.slice(0, Math.min(limit, items.length));
 }
 
 export const getBattlelog = getPlayerBattlelog;
 
 export async function getTopPlayers(limit = 10): Promise<PlayerRanking[]> {
   const data = await brawlFetch<BrawlListResponse<PlayerRanking>>("/rankings/global/players", 120);
-  return (data.items ?? []).slice(0, limit);
+  const parsed = (data.items ?? []).map((item) => ({
+    ...item,
+    rank: Number(item.rank ?? 0),
+    trophies: Number(item.trophies ?? 0)
+  }));
+
+  return parsed.slice(0, limit);
 }
 
 export async function getBrawlerCatalog(): Promise<BrawlerCatalogEntry[]> {

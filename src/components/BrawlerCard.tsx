@@ -15,12 +15,20 @@ export function BrawlerCard({ brawler, name, proVerified = false }: BrawlerCardP
   const starPowers = brawler.starPowers?.length ?? 0;
   const primaryImage = `https://cdn.brawlify.com/brawler/${brawler.id}.png`;
   const fallbackImage = `https://cdn-old.brawlify.com/brawler/${brawler.id}.png`;
+  const defaultImage = "https://cdn.brawlify.com/brawler/16000000.png";
 
   function onImageError(event: SyntheticEvent<HTMLImageElement>) {
     const img = event.currentTarget;
-    if (img.dataset.fallbackApplied === "1") return;
-    img.dataset.fallbackApplied = "1";
-    img.src = fallbackImage;
+    const step = img.dataset.fallbackStep ?? "0";
+    if (step === "0") {
+      img.dataset.fallbackStep = "1";
+      img.src = fallbackImage;
+      return;
+    }
+    if (step === "1") {
+      img.dataset.fallbackStep = "2";
+      img.src = defaultImage;
+    }
   }
 
   return (

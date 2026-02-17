@@ -19,6 +19,7 @@ interface PlayerTabsProps {
   trophiesCurrent: number;
   victories3v3: number;
   rankedElo: number;
+  highestRankedTrophies?: number | null;
   history: HistoryRow[];
   proVerified?: boolean;
 }
@@ -45,6 +46,7 @@ export function PlayerTabs({
   trophiesCurrent,
   victories3v3,
   rankedElo,
+  highestRankedTrophies = null,
   history,
   proVerified = false
 }: PlayerTabsProps) {
@@ -60,7 +62,9 @@ export function PlayerTabs({
   const rankedValue = winrates25.rankedWinrate;
   const ladderValue = winrates25.ladderWinrate;
   const performanceIndex = trophiesCurrent > 0 ? Number(((victories3v3 * 100) / trophiesCurrent).toFixed(2)) : null;
-  const rankedLabel = formatRank(rankedElo);
+  const effectiveRankedElo =
+    rankedElo > 0 ? rankedElo : Math.max(0, Number(highestRankedTrophies ?? 0));
+  const rankedLabel = formatRank(effectiveRankedElo);
 
   return (
     <section className="rounded-2xl border border-slate-700/70 bg-surface-900/70 p-5">
@@ -117,9 +121,9 @@ export function PlayerTabs({
       {tab === "ranked" ? (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <article className="rounded-xl border border-slate-700 bg-surface-900 p-4">
-            <p className="text-xs uppercase tracking-widest text-slate-400">Rang Classé</p>
+            <p className="text-xs uppercase tracking-widest text-slate-400">Rank Classé</p>
             <p className="mt-2 text-3xl font-bold text-white">{rankedLabel}</p>
-            <p className="text-sm text-slate-300">{Math.max(0, Math.round(rankedElo))} ELO</p>
+            <p className="text-sm text-slate-300">{Math.max(0, Math.round(effectiveRankedElo))} ELO</p>
           </article>
           <article className="rounded-xl border border-slate-700 bg-surface-900 p-4">
             <p className="text-xs uppercase tracking-widest text-slate-400">Winrate Classé (25 derniers matchs)</p>

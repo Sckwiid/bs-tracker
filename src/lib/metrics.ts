@@ -76,7 +76,9 @@ function classifyMatchType(battle: BattleItem): MatchType {
     return "ladder";
   }
 
-  return "other";
+  // Fallback permissif: tout match non classé est compté en ladder
+  // pour éviter les N/A quand le payload ne contient pas trophyChange.
+  return "ladder";
 }
 
 function addOutcome(summary: WinrateSummary, outcome: "win" | "loss" | "draw") {

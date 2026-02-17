@@ -1,3 +1,5 @@
+export const SITE_VERSION = "1.0.4";
+
 export function normalizeTag(rawTag: string): string {
   const trimmed = rawTag.trim().toUpperCase().replace(/%23/g, "").replace(/^#/, "");
   return `#${trimmed}`;
