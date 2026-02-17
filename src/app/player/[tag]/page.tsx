@@ -97,6 +97,8 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
           ? Number(highestRankedRaw)
           : 0;
 
+    console.log("DEBUG PLAYER DATA:", player);
+
     return (
       <div className="space-y-6">
         <header className="rounded-2xl border border-slate-700/70 bg-surface-900/75 p-6">

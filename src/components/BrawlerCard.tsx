@@ -14,7 +14,12 @@ export function BrawlerCard({ brawler, name, proVerified = false }: BrawlerCardP
   const gadgets = brawler.gadgets?.length ?? 0;
   const starPowers = brawler.starPowers?.length ?? 0;
   const primaryImage = `https://cdn.brawlify.com/brawler/${brawler.id}.png`;
-  const fallbackImage = `https://cdn-old.brawlify.com/brawler/${brawler.id}.png`;
+  const byNameSlug = String(name)
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+  const fallbackImage = `https://cdn.brawlify.com/brawler/${byNameSlug}.png`;
+  const legacyFallbackImage = `https://cdn-old.brawlify.com/brawler/${brawler.id}.png`;
   const defaultImage = "https://cdn.brawlify.com/brawler/16000000.png";
 
   function onImageError(event: SyntheticEvent<HTMLImageElement>) {
@@ -27,6 +32,11 @@ export function BrawlerCard({ brawler, name, proVerified = false }: BrawlerCardP
     }
     if (step === "1") {
       img.dataset.fallbackStep = "2";
+      img.src = legacyFallbackImage;
+      return;
+    }
+    if (step === "2") {
+      img.dataset.fallbackStep = "3";
       img.src = defaultImage;
     }
   }

@@ -154,6 +154,7 @@ export async function getTopPlayers(limit = 10): Promise<PlayerRanking[]> {
   const parsed = (data.items ?? []).map((item) => ({
     ...item,
     rank: Number(item.rank ?? 0),
+    // Important: points affichés = item.trophies (jamais item.rank).
     trophies: Number(item.trophies ?? 0)
   }));
 

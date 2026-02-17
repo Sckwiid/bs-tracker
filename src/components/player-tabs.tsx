@@ -62,9 +62,17 @@ export function PlayerTabs({
   const rankedValue = winrates25.rankedWinrate;
   const ladderValue = winrates25.ladderWinrate;
   const performanceIndex = trophiesCurrent > 0 ? Number(((victories3v3 * 100) / trophiesCurrent).toFixed(2)) : null;
+  const hasMasterHistory = Number(highestRankedTrophies ?? 0) > 0;
   const effectiveRankedElo =
-    rankedElo > 0 ? rankedElo : Math.max(0, Number(highestRankedTrophies ?? 0));
-  const rankedLabel = formatRank(effectiveRankedElo);
+    rankedElo > 0
+      ? rankedElo
+      : hasMasterHistory
+        ? Math.max(8250, Number(highestRankedTrophies ?? 0))
+        : 0;
+  const rankedLabel = hasMasterHistory
+    ? formatRank(Math.max(8250, effectiveRankedElo))
+    : formatRank(effectiveRankedElo);
+  const eloDisplay = rankedElo <= 0 && hasMasterHistory ? "Score masqué" : `${Math.max(0, Math.round(effectiveRankedElo))} ELO`;
 
   return (
     <section className="rounded-2xl border border-slate-700/70 bg-surface-900/70 p-5">
@@ -123,7 +131,7 @@ export function PlayerTabs({
           <article className="rounded-xl border border-slate-700 bg-surface-900 p-4">
             <p className="text-xs uppercase tracking-widest text-slate-400">Rank Classé</p>
             <p className="mt-2 text-3xl font-bold text-white">{rankedLabel}</p>
-            <p className="text-sm text-slate-300">{Math.max(0, Math.round(effectiveRankedElo))} ELO</p>
+            <p className="text-sm text-slate-300">{eloDisplay}</p>
           </article>
           <article className="rounded-xl border border-slate-700 bg-surface-900 p-4">
             <p className="text-xs uppercase tracking-widest text-slate-400">Winrate Classé (25 derniers matchs)</p>
