@@ -1,3 +1,7 @@
+"use client";
+
+import { SyntheticEvent } from "react";
+
 import { BrawlerStat } from "@/types/brawl";
 
 interface BrawlerCardProps {
@@ -9,7 +13,15 @@ interface BrawlerCardProps {
 export function BrawlerCard({ brawler, name, proVerified = false }: BrawlerCardProps) {
   const gadgets = brawler.gadgets?.length ?? 0;
   const starPowers = brawler.starPowers?.length ?? 0;
-  const image = `https://cdn.brawlify.com/brawler/${brawler.id}.png`;
+  const primaryImage = `https://cdn.brawlify.com/brawler/${brawler.id}.png`;
+  const fallbackImage = `https://cdn-old.brawlify.com/brawler/${brawler.id}.png`;
+
+  function onImageError(event: SyntheticEvent<HTMLImageElement>) {
+    const img = event.currentTarget;
+    if (img.dataset.fallbackApplied === "1") return;
+    img.dataset.fallbackApplied = "1";
+    img.src = fallbackImage;
+  }
 
   return (
     <article className="relative rounded-2xl border border-slate-700/70 bg-surface-900/80 p-4">
@@ -20,7 +32,14 @@ export function BrawlerCard({ brawler, name, proVerified = false }: BrawlerCardP
       ) : null}
       <div className="flex items-center gap-3">
         <div className="h-14 w-14 overflow-hidden rounded-xl border border-slate-700/80 bg-surface-900">
-          <img src={image} alt={name} className="h-full w-full object-cover" />
+          <img
+            src={primaryImage}
+            alt={name}
+            className="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+            onError={onImageError}
+          />
         </div>
         <div>
           <h3 className="font-semibold text-white">{name}</h3>

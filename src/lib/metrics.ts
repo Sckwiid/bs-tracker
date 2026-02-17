@@ -27,6 +27,12 @@ export interface PlayedBrawler {
   gamesEstimate: number;
 }
 
+export interface ExtractRankedEloOptions {
+  fallbackFromDb?: number | null;
+}
+
+type MatchType = "ranked" | "ladder" | "other";
+
 function asNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value))) return Number(value);
@@ -54,7 +60,7 @@ function computeWinrate(summary: WinrateSummary): WinrateSummary {
   };
 }
 
-function classifyMatchType(battle: BattleItem): "ranked" | "ladder" | "other" {
+function classifyMatchType(battle: BattleItem): MatchType {
   const mode = String(battle.battle?.mode ?? battle.event?.mode ?? "").toLowerCase();
   if (
     mode.includes("ranked") ||
@@ -64,9 +70,12 @@ function classifyMatchType(battle: BattleItem): "ranked" | "ladder" | "other" {
   ) {
     return "ranked";
   }
+
+  // Matchs ladder: présence d'un changement de trophées.
   if (typeof battle.battle?.trophyChange === "number") {
     return "ladder";
   }
+
   return "other";
 }
 
@@ -76,32 +85,28 @@ function addOutcome(summary: WinrateSummary, outcome: "win" | "loss" | "draw") {
   if (outcome === "draw") summary.draws += 1;
 }
 
-export function calculateWinrate25(battlelog: BattleItem[]): WinrateBreakdown {
-  const source = battlelog.slice(0, 25);
+function parseOutcome(battle: BattleItem): "win" | "loss" | "draw" | null {
+  const result = String(battle.battle?.result ?? "").toLowerCase();
+  if (isWin(result)) return "win";
+  if (isLoss(result)) return "loss";
+  if (result.includes("draw")) return "draw";
+
+  if (typeof battle.battle?.rank === "number") {
+    return battle.battle.rank === 1 ? "win" : "loss";
+  }
+
+  return null;
+}
+
+function summarizeFromEntries(entries: Array<{ type: MatchType; outcome: "win" | "loss" | "draw" }>): WinrateBreakdown {
   const overall = emptySummary();
   const ranked = emptySummary();
   const ladder = emptySummary();
 
-  for (const battle of source) {
-    const result = String(battle.battle?.result ?? "").toLowerCase();
-    let outcome: "win" | "loss" | "draw" | null = null;
-
-    if (isWin(result)) {
-      outcome = "win";
-    } else if (isLoss(result)) {
-      outcome = "loss";
-    } else if (result.includes("draw")) {
-      outcome = "draw";
-    } else if (typeof battle.battle?.rank === "number") {
-      outcome = battle.battle.rank === 1 ? "win" : "loss";
-    }
-
-    if (!outcome) continue;
-
-    addOutcome(overall, outcome);
-    const type = classifyMatchType(battle);
-    if (type === "ranked") addOutcome(ranked, outcome);
-    if (type === "ladder") addOutcome(ladder, outcome);
+  for (const entry of entries) {
+    addOutcome(overall, entry.outcome);
+    if (entry.type === "ranked") addOutcome(ranked, entry.outcome);
+    if (entry.type === "ladder") addOutcome(ladder, entry.outcome);
   }
 
   const overallSummary = computeWinrate(overall);
@@ -115,6 +120,21 @@ export function calculateWinrate25(battlelog: BattleItem[]): WinrateBreakdown {
     rankedWinrate: rankedSummary.matches > 0 ? rankedSummary.winrate : null,
     ladderWinrate: ladderSummary.matches > 0 ? ladderSummary.winrate : null
   };
+}
+
+export function calculateWinrate25(battlelog: BattleItem[]): WinrateBreakdown {
+  // Scan plus large pour éviter N/A quand les 25 premières lignes sont incomplètes.
+  const scanned = battlelog.slice(0, 60);
+  const parsed: Array<{ type: MatchType; outcome: "win" | "loss" | "draw" }> = [];
+
+  for (const battle of scanned) {
+    const outcome = parseOutcome(battle);
+    if (!outcome) continue;
+    parsed.push({ type: classifyMatchType(battle), outcome });
+    if (parsed.length >= 25) break;
+  }
+
+  return summarizeFromEntries(parsed);
 }
 
 export function estimatePlaytimeMinutes(victories: number): number {
@@ -132,13 +152,11 @@ export function estimatePlayerPlaytime(player: Player): number {
 export function estimateAccountValue(player: Player): number {
   const brawlers = player.brawlers ?? [];
   const power11Count = brawlers.filter((brawler) => (brawler.power ?? 0) >= 11).length;
-  const brawlerAndPowerValue = brawlers.length * 170 + power11Count * 50;
-  const estimatedSkinsValue = brawlers.length * 80;
-  return brawlerAndPowerValue + estimatedSkinsValue;
+  // (Brawlers * 170) + (Power11 * 50) + (Brawlers * 80 skins forfaitaires)
+  return brawlers.length * 170 + power11Count * 50 + brawlers.length * 80;
 }
 
-export function extractRankedElo(player: Player): number {
-  const source = player as unknown as Record<string, unknown>;
+function readCurrentRankedElo(source: Record<string, unknown>): number {
   const candidates = [
     source.elo,
     source.rankedElo,
@@ -148,29 +166,99 @@ export function extractRankedElo(player: Player): number {
     source.trophyLeagueElo
   ];
 
-  let currentElo = 0;
   for (const candidate of candidates) {
     const parsed = asNumber(candidate);
     if (parsed !== null && parsed >= 0) {
-      currentElo = parsed;
-      break;
+      return parsed;
     }
   }
+
+  return 0;
+}
+
+function looksMasterLike(source: Record<string, unknown>): boolean {
+  const textCandidates = [
+    source.rankName,
+    source.rank,
+    source.currentRank,
+    source.rankedLeague,
+    source.rankedTier
+  ];
+
+  for (const raw of textCandidates) {
+    const value = String(raw ?? "").toLowerCase();
+    if (value.includes("master")) {
+      return true;
+    }
+  }
+
+  const numericCandidates = [source.rank, source.currentRankLevel, source.rankedLevel];
+  for (const raw of numericCandidates) {
+    const value = asNumber(raw);
+    if (value !== null && value >= 19) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function readHighestRankedElo(source: Record<string, unknown>): number {
+  const candidates = [
+    source.highestRankedTrophies,
+    source.highest_ranked_trophies,
+    source.rankedTrophies,
+    source.ranked_trophies,
+    source.bestRankedTrophies,
+    source.bestElo
+  ];
+
+  for (const candidate of candidates) {
+    const parsed = asNumber(candidate);
+    if (parsed !== null && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return 0;
+}
+
+export function extractRankedElo(player: Player, options: ExtractRankedEloOptions = {}): number {
+  const source = player as unknown as Record<string, unknown>;
+  const currentElo = readCurrentRankedElo(source);
 
   if (currentElo > 0) {
     return currentElo;
   }
 
-  const highestCandidates = [
-    source.highestRankedTrophies,
-    source.highest_ranked_trophies,
-    source.bestRankedTrophies,
-    source.bestElo
-  ];
+  // Début de saison: current ELO parfois 0/null.
+  // En Master, on force la recherche sur les champs historiques ranked.
+  if (looksMasterLike(source)) {
+    const masterFallback = readHighestRankedElo(source);
+    if (masterFallback > 0) {
+      return masterFallback;
+    }
+  }
 
-  for (const candidate of highestCandidates) {
+  const genericFallback = readHighestRankedElo(source);
+  if (genericFallback > 0) {
+    return genericFallback;
+  }
+
+  const dbFallback = asNumber(options.fallbackFromDb);
+  if (dbFallback !== null && dbFallback > 0) {
+    return dbFallback;
+  }
+
+  const embeddedDbCandidates = [
+    source.lastRankedElo,
+    source.last_ranked_elo,
+    source.previousRankedElo,
+    source.previous_ranked_elo
+  ];
+  for (const candidate of embeddedDbCandidates) {
     const parsed = asNumber(candidate);
-    if (parsed !== null && parsed >= 0) {
+    if (parsed !== null && parsed > 0) {
       return parsed;
     }
   }
