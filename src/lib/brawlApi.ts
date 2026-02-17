@@ -3,9 +3,18 @@ import "server-only";
 import { BattleItem, BrawlerCatalogEntry, BrawlListResponse, Player, PlayerRanking } from "@/types/brawl";
 import { normalizeTag } from "@/lib/utils";
 
-const BRAWL_API_BASE_URL = process.env.BRAWL_API_BASE_URL ?? "https://api.brawlstars.com/v1";
+const FETCH_TIMEOUT_MS = 10_000;
 const BRAWL_API_TOKEN = process.env.BRAWL_API_TOKEN;
-const BRAWLIFY_API_BASE_URL = process.env.BRAWLIFY_API_BASE_URL ?? "https://api.brawlify.com/v1";
+
+const RAW_BRAWL_API_BASE = (process.env.BRAWL_API_BASE_URL ?? "https://api.brawlstars.com/v1").trim();
+const SANITIZED_BRAWL_API_BASE = RAW_BRAWL_API_BASE.replace(/\/+$/, "");
+const BRAWL_API_BASE_URL = /\/v1$/i.test(SANITIZED_BRAWL_API_BASE)
+  ? SANITIZED_BRAWL_API_BASE
+  : `${SANITIZED_BRAWL_API_BASE}/v1`;
+
+const BRAWLIFY_API_BASE_URL = (process.env.BRAWLIFY_API_BASE_URL ?? "https://api.brawlify.com/v1")
+  .trim()
+  .replace(/\/+$/, "");
 
 type BrawlApiErrorCode = "UNAUTHORIZED" | "PLAYER_NOT_FOUND" | "MAINTENANCE" | "HTTP_ERROR";
 
@@ -43,16 +52,63 @@ function mapStatusToCode(status: number): BrawlApiErrorCode {
   return "HTTP_ERROR";
 }
 
+function normalizeApiPath(path: string): string {
+  const withSlash = path.startsWith("/") ? path : `/${path}`;
+  return withSlash.replace(/^\/v1(?=\/|$)/, "");
+}
+
+function buildBrawlApiUrl(path: string): string {
+  return `${BRAWL_API_BASE_URL}${normalizeApiPath(path)}`;
+}
+
+function buildBrawlifyApiUrl(path: string): string {
+  const withSlash = path.startsWith("/") ? path : `/${path}`;
+  return `${BRAWLIFY_API_BASE_URL}${withSlash}`;
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit & { next?: { revalidate?: number } },
+  timeoutMs = FETCH_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function brawlFetch<T>(path: string, revalidate = 30): Promise<T> {
   const token = requireToken();
-  const response = await fetch(`${BRAWL_API_BASE_URL}${path}`, {
-    headers: {
-      Authorization: `Bearer ${token}`
-    },
-    next: {
-      revalidate
+  let response: Response;
+  try {
+    response = await fetchWithTimeout(
+      buildBrawlApiUrl(path),
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        next: {
+          revalidate
+        }
+      },
+      FETCH_TIMEOUT_MS
+    );
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new BrawlApiError(`Brawl API timeout (${FETCH_TIMEOUT_MS}ms)`, 504, "HTTP_ERROR");
     }
-  });
+    throw error;
+  }
 
   if (!response.ok) {
     let detail = "";
@@ -109,11 +165,23 @@ function toTier(winrate: number): "S" | "A" | "B" | "C" {
 }
 
 export async function getBrawlifyTierList(limit = 30): Promise<BrawlifyTierEntry[]> {
-  const response = await fetch(`${BRAWLIFY_API_BASE_URL}/brawlers`, {
-    next: {
-      revalidate: 1800
+  let response: Response;
+  try {
+    response = await fetchWithTimeout(
+      buildBrawlifyApiUrl("/brawlers"),
+      {
+        next: {
+          revalidate: 1800
+        }
+      },
+      FETCH_TIMEOUT_MS
+    );
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new Error(`Brawlify API timeout (${FETCH_TIMEOUT_MS}ms)`);
     }
-  });
+    throw error;
+  }
 
   if (!response.ok) {
     throw new Error(`Brawlify API error (${response.status})`);

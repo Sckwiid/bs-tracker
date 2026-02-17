@@ -3,10 +3,11 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { TagSearchForm } from "@/components/tag-search-form";
-import { getTopPlayers } from "@/lib/brawlApi";
+import { BrawlApiError, getTopPlayers } from "@/lib/brawlApi";
 import { formatNumber } from "@/lib/utils";
 
 export const revalidate = 90;
+export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "BrawStar Tracker - Home",
   description: "Recherche par tag, top joueurs mondiaux et stats Brawl Stars en direct.",
@@ -26,7 +27,20 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const topPlayers = await getTopPlayers(10).catch(() => []);
+  let topPlayers: Awaited<ReturnType<typeof getTopPlayers>> = [];
+  let topPlayersError: string | null = null;
+
+  try {
+    topPlayers = await getTopPlayers(10);
+  } catch (error) {
+    if (error instanceof BrawlApiError) {
+      topPlayersError = `Top 10 indisponible (HTTP ${error.status}).`;
+    } else if (error instanceof Error) {
+      topPlayersError = `Top 10 indisponible (${error.message}).`;
+    } else {
+      topPlayersError = "Top 10 indisponible (erreur inconnue).";
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -73,7 +87,8 @@ export default async function HomePage() {
           ))}
           {topPlayers.length === 0 ? (
             <p className="text-sm text-rose-300">
-              Impossible de charger le Top 10. Vérifie `BRAWL_API_TOKEN` dans l&apos;environnement.
+              {topPlayersError ??
+                "Top 10 indisponible. Vérifie BRAWL_API_TOKEN, l'accès proxy et la disponibilité de l'API."}
             </p>
           ) : null}
         </div>
