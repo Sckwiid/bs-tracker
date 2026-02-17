@@ -9,7 +9,7 @@ interface BrawlerCardProps {
 export function BrawlerCard({ brawler, name, proVerified = false }: BrawlerCardProps) {
   const gadgets = brawler.gadgets?.length ?? 0;
   const starPowers = brawler.starPowers?.length ?? 0;
-  const image = `https://cdn.brawlify.com/brawlers/icons/${brawler.id}.png`;
+  const image = `https://cdn.brawlify.com/brawler/${brawler.id}.png`;
 
   return (
     <article className="relative rounded-2xl border border-slate-700/70 bg-surface-900/80 p-4">
@@ -24,7 +24,7 @@ export function BrawlerCard({ brawler, name, proVerified = false }: BrawlerCardP
         </div>
         <div>
           <h3 className="font-semibold text-white">{name}</h3>
-          <p className="text-xs text-neon-cyan">Niveau {brawler.power} • Rang {brawler.rank}</p>
+          <p className="text-xs text-neon-cyan">Niveau {brawler.power} • Rank {brawler.rank}</p>
         </div>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-200">

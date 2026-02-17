@@ -153,6 +153,18 @@ async function getHistory(tag: string): Promise<HistoryRow[]> {
   return (query.data as HistoryRow[]) ?? [];
 }
 
+async function hasHistory(tag: string): Promise<boolean> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return false;
+
+  const query = await supabase.from("history").select("id").eq("player_tag", tag).limit(1);
+  if (query.error) {
+    throw new Error(`Supabase read history existence error: ${query.error.message}`);
+  }
+
+  return Array.isArray(query.data) && query.data.length > 0;
+}
+
 export async function fetchAndStorePlayerSnapshot(tag: string): Promise<SnapshotBundle> {
   const normalizedTag = normalizeTag(tag);
   const [player, battlelog] = await Promise.all([getPlayer(normalizedTag), getPlayerBattlelog(normalizedTag, 25)]);
@@ -168,9 +180,10 @@ export async function fetchAndStorePlayerSnapshot(tag: string): Promise<Snapshot
   let changed = true;
   try {
     const previous = await withDbTimeout(getPlayerRow(normalizedTag));
+    const historyExists = await withDbTimeout(hasHistory(normalizedTag));
     changed = !previous || previous.last_snapshot_hash !== hash;
     await withDbTimeout(upsertPlayer(player, hash, persistedWinrate, estimatedPlaytimeMinutes));
-    if (changed) {
+    if (changed || !historyExists) {
       await withDbTimeout(upsertDailyHistory(player, estimatedPlaytimeMinutes, persistedWinrate));
     }
   } catch (error) {

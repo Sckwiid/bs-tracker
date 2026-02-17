@@ -56,7 +56,12 @@ function computeWinrate(summary: WinrateSummary): WinrateSummary {
 
 function classifyMatchType(battle: BattleItem): "ranked" | "ladder" | "other" {
   const mode = String(battle.battle?.mode ?? battle.event?.mode ?? "").toLowerCase();
-  if (mode.includes("ranked") || mode.includes("powerleague") || mode.includes("power league")) {
+  if (
+    mode.includes("ranked") ||
+    mode.includes("powerleague") ||
+    mode.includes("power league") ||
+    mode.includes("compet")
+  ) {
     return "ranked";
   }
   if (typeof battle.battle?.trophyChange === "number") {
@@ -127,7 +132,9 @@ export function estimatePlayerPlaytime(player: Player): number {
 export function estimateAccountValue(player: Player): number {
   const brawlers = player.brawlers ?? [];
   const power11Count = brawlers.filter((brawler) => (brawler.power ?? 0) >= 11).length;
-  return brawlers.length * 170 + power11Count * 50;
+  const brawlerAndPowerValue = brawlers.length * 170 + power11Count * 50;
+  const estimatedSkinsValue = brawlers.length * 80;
+  return brawlerAndPowerValue + estimatedSkinsValue;
 }
 
 export function extractRankedElo(player: Player): number {
@@ -141,12 +148,33 @@ export function extractRankedElo(player: Player): number {
     source.trophyLeagueElo
   ];
 
+  let currentElo = 0;
   for (const candidate of candidates) {
+    const parsed = asNumber(candidate);
+    if (parsed !== null && parsed >= 0) {
+      currentElo = parsed;
+      break;
+    }
+  }
+
+  if (currentElo > 0) {
+    return currentElo;
+  }
+
+  const highestCandidates = [
+    source.highestRankedTrophies,
+    source.highest_ranked_trophies,
+    source.bestRankedTrophies,
+    source.bestElo
+  ];
+
+  for (const candidate of highestCandidates) {
     const parsed = asNumber(candidate);
     if (parsed !== null && parsed >= 0) {
       return parsed;
     }
   }
+
   return 0;
 }
 

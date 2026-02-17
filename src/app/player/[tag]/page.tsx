@@ -11,7 +11,7 @@ interface PlayerPageProps {
   params: { tag: string };
 }
 
-function gradeFromTrophies(trophies: number): string {
+function rankFromTrophies(trophies: number): string {
   if (trophies >= 70000) return "Master";
   if (trophies >= 55000) return "Diamond";
   if (trophies >= 40000) return "Gold";
@@ -86,8 +86,8 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
   try {
     const bundle = await fetchAndStorePlayerSnapshot(tag);
     const player = bundle.player;
-    const currentGrade = gradeFromTrophies(player.trophies);
-    const maxGrade = gradeFromTrophies(player.highestTrophies);
+    const currentRank = rankFromTrophies(player.trophies);
+    const maxRank = rankFromTrophies(player.highestTrophies);
 
     return (
       <div className="space-y-6">
@@ -121,9 +121,9 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
           </article>
           <article className="rounded-xl border border-slate-700 bg-surface-900/75 p-4">
             <p className="text-xs uppercase tracking-widest text-slate-400">Ranked</p>
-            <p className="mt-2 text-2xl font-bold text-white">{currentGrade}</p>
-            <p className="text-sm text-slate-300">Grade actuel (proxy trophées)</p>
-            <p className="text-sm text-slate-300">Grade max: {maxGrade}</p>
+            <p className="mt-2 text-2xl font-bold text-white">{currentRank}</p>
+            <p className="text-sm text-slate-300">Rank actuel (proxy trophées)</p>
+            <p className="text-sm text-slate-300">Rank max: {maxRank}</p>
           </article>
           <article className="rounded-xl border border-slate-700 bg-surface-900/75 p-4">
             <p className="text-xs uppercase tracking-widest text-slate-400">Performance</p>
@@ -136,7 +136,7 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
           <article className="rounded-xl border border-neon-cyan/40 bg-surface-900/75 p-4">
             <p className="text-xs uppercase tracking-widest text-slate-400">Valeur du compte</p>
             <p className="mt-2 text-2xl font-bold text-neon-cyan">💎 {formatNumber(bundle.accountValueGems)}</p>
-            <p className="text-sm text-slate-300">Estimation gemmes (brawlers + power 11)</p>
+            <p className="text-sm text-slate-300">Estimation gemmes (brawlers + power 11 + skins)</p>
           </article>
         </section>
 
