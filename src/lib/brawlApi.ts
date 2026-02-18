@@ -235,8 +235,8 @@ export async function getTopRankedPlayers(limit = 10): Promise<RankedLeaderboard
             icon: { id: Number((item.icon as any)?.id ?? 28000000) }
           };
         })
-        .filter((e): e is RankedLeaderboardEntry => e !== null)
-        .slice(0, limit);
+        .filter((e): e is any => e !== null)
+        .slice(0, limit) as RankedLeaderboardEntry[];
 
       if (parsed.length > 0) return parsed;
     } catch {
