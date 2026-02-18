@@ -234,7 +234,7 @@ export async function getTopRankedPlayers(limit = 10): Promise<RankedLeaderboard
             icon: { id: Number((item.icon as { id?: unknown } | undefined)?.id ?? 28000000) }
           } satisfies RankedLeaderboardEntry;
         })
-        .filter((entry): entry is RankedLeaderboardEntry => Boolean(entry))
+        .filter((entry): entry is RankedLeaderboardEntry => !!entry)
         .slice(0, limit);
 
       if (parsed.length > 0) return parsed;
