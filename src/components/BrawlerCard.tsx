@@ -2,6 +2,7 @@
 
 import { SyntheticEvent } from "react";
 
+import brawlersData from "@/data/brawlers.json";
 import { BrawlerStat } from "@/types/brawl";
 
 interface BrawlerCardProps {
@@ -13,32 +14,16 @@ interface BrawlerCardProps {
 export function BrawlerCard({ brawler, name, proVerified = false }: BrawlerCardProps) {
   const gadgets = brawler.gadgets?.length ?? 0;
   const starPowers = brawler.starPowers?.length ?? 0;
-  const primaryImage = `https://cdn.brawlify.com/brawler/${brawler.id}.png`;
-  const byNameSlug = String(name)
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
-  const fallbackImage = `https://cdn.brawlify.com/brawler/${byNameSlug}.png`;
-  const legacyFallbackImage = `https://cdn-old.brawlify.com/brawler/${brawler.id}.png`;
-  const defaultImage = "https://cdn.brawlify.com/brawler/16000000.png";
+  const dataset = brawlersData as Array<{ id: number; imageUrl: string }>;
+  const byId = new Map<number, string>(dataset.map((entry) => [Number(entry.id), entry.imageUrl]));
+  const defaultImage = byId.get(16000000) ?? "https://cdn.brawlify.com/brawler/16000000.png";
+  const primaryImage = byId.get(Number(brawler.id)) ?? defaultImage;
 
   function onImageError(event: SyntheticEvent<HTMLImageElement>) {
     const img = event.currentTarget;
-    const step = img.dataset.fallbackStep ?? "0";
-    if (step === "0") {
-      img.dataset.fallbackStep = "1";
-      img.src = fallbackImage;
-      return;
-    }
-    if (step === "1") {
-      img.dataset.fallbackStep = "2";
-      img.src = legacyFallbackImage;
-      return;
-    }
-    if (step === "2") {
-      img.dataset.fallbackStep = "3";
-      img.src = defaultImage;
-    }
+    if (img.dataset.fallbackApplied === "1") return;
+    img.dataset.fallbackApplied = "1";
+    img.src = defaultImage;
   }
 
   return (

@@ -1,4 +1,4 @@
-export const SITE_VERSION = "1.0.7";
+export const SITE_VERSION = "1.0.8";
 
 export function normalizeTag(rawTag: string): string {
   const trimmed = rawTag.trim().toUpperCase().replace(/%23/g, "").replace(/^#/, "");
@@ -32,32 +32,32 @@ export function modeOfBattle(item: { battle?: { mode?: string }; event?: { mode?
 export function formatRank(elo: number): string {
   const value = Number.isFinite(elo) ? Math.max(0, elo) : 0;
 
-  if (value < 250) return "Bronze 1";
-  if (value < 500) return "Bronze 2";
-  if (value < 750) return "Bronze 3";
+  if (value < 250) return "Bronze I";
+  if (value < 500) return "Bronze II";
+  if (value < 750) return "Bronze III";
 
-  if (value < 1000) return "Argent 1";
-  if (value < 1250) return "Argent 2";
-  if (value < 1500) return "Argent 3";
+  if (value < 1000) return "Argent I";
+  if (value < 1250) return "Argent II";
+  if (value < 1500) return "Argent III";
 
-  if (value < 2000) return "Or 1";
-  if (value < 2500) return "Or 2";
-  if (value < 3000) return "Or 3";
+  if (value < 2000) return "Or I";
+  if (value < 2500) return "Or II";
+  if (value < 3000) return "Or III";
 
-  if (value < 3500) return "Diamant 1";
-  if (value < 4000) return "Diamant 2";
-  if (value < 4500) return "Diamant 3";
+  if (value < 3500) return "Diamant I";
+  if (value < 4000) return "Diamant II";
+  if (value < 4500) return "Diamant III";
 
-  if (value < 5000) return "Mythique 1";
-  if (value < 5500) return "Mythique 2";
-  if (value < 6000) return "Mythique 3";
+  if (value < 5000) return "Mythique I";
+  if (value < 5500) return "Mythique II";
+  if (value < 6000) return "Mythique III";
 
-  if (value < 6750) return "Légendaire 1";
-  if (value < 7500) return "Légendaire 2";
-  if (value < 8250) return "Légendaire 3";
+  if (value < 6750) return "Légendaire I";
+  if (value < 7500) return "Légendaire II";
+  if (value < 8250) return "Légendaire III";
 
-  if (value < 9250) return "Master 1";
-  if (value < 10250) return "Master 2";
-  if (value < 11250) return "Master 3";
+  if (value < 9250) return "Master I";
+  if (value < 10250) return "Master II";
+  if (value < 11250) return "Master III";
   return "Pro";
 }

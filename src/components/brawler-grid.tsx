@@ -1,3 +1,4 @@
+import brawlersData from "@/data/brawlers.json";
 import { BrawlerStat, BrawlerCatalogEntry } from "@/types/brawl";
 
 interface BrawlerGridProps {
@@ -24,14 +25,17 @@ export function BrawlerGrid({ brawlers, catalog }: BrawlerGridProps) {
   const nameById = new Map<number, string>(
     catalog.map((entry) => [entry.id, localizedName(entry.name) ?? `#${entry.id}`])
   );
+  const imageById = new Map<number, string>(
+    (brawlersData as Array<{ id: number; imageUrl: string }>).map((entry) => [Number(entry.id), entry.imageUrl])
+  );
+  const defaultImage = imageById.get(16000000) ?? "https://cdn.brawlify.com/brawler/16000000.png";
   const ordered = [...brawlers].sort((a, b) => b.trophies - a.trophies);
 
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {ordered.map((brawler) => {
         const name = resolveName(brawler, nameById);
-        const imgSrc = `https://cdn.brawlify.com/brawler/${brawler.id}.png`;
-        const fallbackSrc = "https://cdn.brawlify.com/brawler/16000000.png";
+        const imgSrc = imageById.get(Number(brawler.id)) ?? defaultImage;
 
         return (
           <article key={brawler.id} className="rounded-xl border border-slate-700/80 bg-surface-900/70 p-3">
@@ -47,7 +51,7 @@ export function BrawlerGrid({ brawlers, catalog }: BrawlerGridProps) {
                     const image = event.currentTarget;
                     if (image.dataset.fallbackApplied === "1") return;
                     image.dataset.fallbackApplied = "1";
-                    image.src = fallbackSrc;
+                    image.src = defaultImage;
                   }}
                 />
               </div>

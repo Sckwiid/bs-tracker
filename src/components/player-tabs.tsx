@@ -62,20 +62,11 @@ export function PlayerTabs({
   const rankedValue = winrates25.rankedWinrate;
   const ladderValue = winrates25.ladderWinrate;
   const performanceIndex = trophiesCurrent > 0 ? Number(((victories3v3 * 100) / trophiesCurrent).toFixed(2)) : null;
-  const hasMasterHistory = Number(highestRankedTrophies ?? 0) > 0;
   const effectiveRankedElo =
-    rankedElo > 0
-      ? rankedElo
-      : hasMasterHistory
-        ? Math.max(8250, Number(highestRankedTrophies ?? 0))
-        : 0;
-  const isSeasonResetMaster = rankedElo === 0 && hasMasterHistory;
-  const rankedLabel = isSeasonResetMaster
-    ? "Reset Saison"
-    : hasMasterHistory
-      ? formatRank(Math.max(8250, effectiveRankedElo))
-      : formatRank(effectiveRankedElo);
-  const eloDisplay = isSeasonResetMaster ? "---" : `${Math.max(0, Math.round(effectiveRankedElo))} ELO`;
+    rankedElo > 0 ? rankedElo : Math.max(0, Number(highestRankedTrophies ?? 0));
+  const isUnranked = rankedElo === 0 && rankedValue === null;
+  const rankedLabel = isUnranked ? "Non Classé" : formatRank(effectiveRankedElo);
+  const eloDisplay = isUnranked ? "Pas joué" : `${Math.max(0, Math.round(effectiveRankedElo))} ELO`;
 
   return (
     <section className="rounded-2xl border border-slate-700/70 bg-surface-900/70 p-5">
@@ -116,16 +107,17 @@ export function PlayerTabs({
             })}
           </div>
 
-          <article className="rounded-xl border border-slate-700 bg-surface-900 p-4">
-            <h3 className="text-sm uppercase tracking-widest text-slate-400">Performance Récente</h3>
-            <p className="mt-2 text-sm text-slate-200">
-              Ladder Winrate (25 derniers matchs trophées):{" "}
-              {ladderValue === null ? "Aucun match récent" : `${ladderValue}%`}
-            </p>
-            <p className="text-sm text-slate-200">
-              Indice de Performance: {performanceIndex === null ? "N/A" : `${performanceIndex}%`}
-            </p>
-          </article>
+          {ladderValue !== null ? (
+            <article className="rounded-xl border border-slate-700 bg-surface-900 p-4">
+              <h3 className="text-sm uppercase tracking-widest text-slate-400">Performance Récente</h3>
+              <p className="mt-2 text-sm text-slate-200">
+                Ladder Winrate (25 derniers matchs trophées): {`${ladderValue}%`}
+              </p>
+              <p className="text-sm text-slate-200">
+                Indice de Performance: {performanceIndex === null ? "N/A" : `${performanceIndex}%`}
+              </p>
+            </article>
+          ) : null}
         </div>
       ) : null}
 

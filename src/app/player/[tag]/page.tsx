@@ -4,19 +4,11 @@ import Link from "next/link";
 import { PlayerTabs } from "@/components/player-tabs";
 import { BrawlApiError, getPlayer } from "@/lib/brawlApi";
 import { fetchAndStorePlayerSnapshot } from "@/lib/snapshots";
-import { formatNumber, normalizeTag, toBrawlerSlug } from "@/lib/utils";
+import { formatNumber, formatRank, normalizeTag, toBrawlerSlug } from "@/lib/utils";
 import { BrawlerStat, Player } from "@/types/brawl";
 
 interface PlayerPageProps {
   params: { tag: string };
-}
-
-function rankFromTrophies(trophies: number): string {
-  if (trophies >= 70000) return "Master";
-  if (trophies >= 55000) return "Diamond";
-  if (trophies >= 40000) return "Gold";
-  if (trophies >= 25000) return "Silver";
-  return "Bronze";
 }
 
 function brawlerName(name: BrawlerStat["name"], fallback: number): string {
@@ -86,8 +78,6 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
   try {
     const bundle = await fetchAndStorePlayerSnapshot(tag);
     const player = bundle.player;
-    const currentRank = rankFromTrophies(player.trophies);
-    const maxRank = rankFromTrophies(player.highestTrophies);
     const rawPlayer = player as unknown as Record<string, unknown>;
     const highestRankedRaw = rawPlayer.highestRankedTrophies ?? rawPlayer.rankedTrophies ?? 0;
     const highestRankedTrophies =
@@ -96,6 +86,11 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
         : Number.isFinite(Number(highestRankedRaw))
           ? Number(highestRankedRaw)
           : 0;
+    const effectiveRankedElo =
+      bundle.rankedElo > 0 ? bundle.rankedElo : Math.max(0, Number(highestRankedTrophies ?? 0));
+    const isUnranked = bundle.rankedElo === 0 && bundle.winrates25.rankedWinrate === null;
+    const rankedLabel = isUnranked ? "Non Classé" : formatRank(effectiveRankedElo);
+    const rankedDetail = isUnranked ? "Pas joué cette saison" : `${Math.round(effectiveRankedElo)} ELO`;
 
     console.log("DEBUG PLAYER DATA:", player);
 
@@ -131,9 +126,9 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
           </article>
           <article className="rounded-xl border border-slate-700 bg-surface-900/75 p-4">
             <p className="text-xs uppercase tracking-widest text-slate-400">Ranked</p>
-            <p className="mt-2 text-2xl font-bold text-white">{currentRank}</p>
-            <p className="text-sm text-slate-300">Rank actuel (proxy trophées)</p>
-            <p className="text-sm text-slate-300">Rank max: {maxRank}</p>
+            <p className="mt-2 text-2xl font-bold text-white">{rankedLabel}</p>
+            <p className="text-sm text-slate-300">{rankedDetail}</p>
+            <p className="text-sm text-slate-300">Peak classé: {formatNumber(highestRankedTrophies)}</p>
           </article>
           <article className="rounded-xl border border-slate-700 bg-surface-900/75 p-4">
             <p className="text-xs uppercase tracking-widest text-slate-400">Performance</p>
