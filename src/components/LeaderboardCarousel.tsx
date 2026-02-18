@@ -5,6 +5,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { formatNumber } from "@/lib/utils";
 
+interface LeaderboardTrend {
+  direction: "up" | "down" | "stable" | "new";
+  places: number;
+  hasHistory: boolean;
+}
+
 type BoardIndex = 0 | 1 | 2;
 
 interface TrophyEntry {
@@ -13,6 +19,7 @@ interface TrophyEntry {
   rank: number;
   trophies: number;
   iconId?: number | null;
+  trend?: LeaderboardTrend;
 }
 
 interface RankedEntry {
@@ -22,6 +29,7 @@ interface RankedEntry {
   elo: number;
   rankLabel: string;
   iconId?: number | null;
+  trend?: LeaderboardTrend;
 }
 
 interface EsportEntry {
@@ -31,6 +39,7 @@ interface EsportEntry {
   earningsUsd: number;
   matcherinoUrl: string | null;
   iconId?: number | null;
+  trend?: LeaderboardTrend;
 }
 
 interface LeaderboardCarouselProps {
@@ -71,9 +80,20 @@ function PlayerIcon({ iconId, alt }: { iconId?: number | null; alt: string }) {
 }
 
 function boardLabel(index: BoardIndex): string {
-  if (index === 0) return "Top 10 Joueurs Mondiaux";
-  if (index === 1) return "Top 10 Joueurs Classés";
+  if (index === 0) return "Top 10 Joueurs Classés";
+  if (index === 1) return "Top 10 Joueurs Mondiaux";
   return "Top 10 Gains Esport";
+}
+
+function TrendBadge({ trend }: { trend?: LeaderboardTrend }) {
+  if (!trend || !trend.hasHistory) return null;
+  if (trend.direction === "up") {
+    return <span className="text-xs font-semibold text-[#98ff3f]">↑ {trend.places}</span>;
+  }
+  if (trend.direction === "down") {
+    return <span className="text-xs font-semibold text-rose-400">↓ {trend.places}</span>;
+  }
+  return <span className="text-xs font-semibold text-slate-400">-</span>;
 }
 
 export function LeaderboardCarousel({ trophyLeaders, rankedLeaders, esportLeaders, errors }: LeaderboardCarouselProps) {
@@ -122,37 +142,6 @@ export function LeaderboardCarousel({ trophyLeaders, rankedLeaders, esportLeader
 
   const content = useMemo(() => {
     if (activeIndex === 0) {
-      if (trophyLeaders.length === 0) {
-        return (
-          <p className="text-sm text-rose-300">
-            {errors?.trophy ?? "Top mondial indisponible pour le moment."}
-          </p>
-        );
-      }
-
-      return (
-        <div className="grid gap-3 md:grid-cols-2">
-          {trophyLeaders.map((player) => (
-            <Link
-              key={player.tag}
-              href={`/player/${encodeURIComponent(player.tag)}`}
-              className="flex items-center gap-3 rounded-xl border border-slate-700/80 bg-surface-900/70 p-3 transition hover:border-neon-cyan/60"
-            >
-              <div className="text-xl font-black text-neon-cyan">#{player.rank}</div>
-              <PlayerIcon iconId={player.iconId} alt={player.name} />
-              <div>
-                <p className="font-semibold text-white">{player.name}</p>
-                <p className="text-sm text-slate-300">
-                  {formatNumber(player.trophies)} trophées • {player.tag}
-                </p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      );
-    }
-
-    if (activeIndex === 1) {
       if (rankedLeaders.length === 0) {
         return (
           <p className="text-sm text-rose-300">
@@ -171,10 +160,47 @@ export function LeaderboardCarousel({ trophyLeaders, rankedLeaders, esportLeader
             >
               <div className="text-xl font-black text-neon-cyan">#{player.rank}</div>
               <PlayerIcon iconId={player.iconId} alt={player.name} />
-              <div>
-                <p className="font-semibold text-white">{player.name}</p>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate font-semibold text-white">{player.name}</p>
+                  <TrendBadge trend={player.trend} />
+                </div>
                 <p className="text-sm text-slate-300">
                   {player.rankLabel} • {formatNumber(player.elo)} ELO
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      );
+    }
+
+    if (activeIndex === 1) {
+      if (trophyLeaders.length === 0) {
+        return (
+          <p className="text-sm text-rose-300">
+            {errors?.trophy ?? "Top mondial indisponible pour le moment."}
+          </p>
+        );
+      }
+
+      return (
+        <div className="grid gap-3 md:grid-cols-2">
+          {trophyLeaders.map((player) => (
+            <Link
+              key={player.tag}
+              href={`/player/${encodeURIComponent(player.tag)}`}
+              className="flex items-center gap-3 rounded-xl border border-slate-700/80 bg-surface-900/70 p-3 transition hover:border-neon-cyan/60"
+            >
+              <div className="text-xl font-black text-neon-cyan">#{player.rank}</div>
+              <PlayerIcon iconId={player.iconId} alt={player.name} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate font-semibold text-white">{player.name}</p>
+                  <TrendBadge trend={player.trend} />
+                </div>
+                <p className="text-sm text-slate-300">
+                  {formatNumber(player.trophies)} trophées • {player.tag}
                 </p>
               </div>
             </Link>
@@ -198,7 +224,10 @@ export function LeaderboardCarousel({ trophyLeaders, rankedLeaders, esportLeader
             <div className="text-xl font-black text-neon-cyan">#{index + 1}</div>
             <PlayerIcon iconId={entry.iconId} alt={entry.displayName} />
             <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-white">{entry.displayName}</p>
+              <div className="flex items-center gap-2">
+                <p className="truncate font-semibold text-white">{entry.displayName}</p>
+                <TrendBadge trend={entry.trend} />
+              </div>
               <p className="text-xs uppercase tracking-wider text-neon-cyan">{entry.team}</p>
               <p className="text-sm text-slate-300">${formatNumber(entry.earningsUsd)}</p>
             </div>

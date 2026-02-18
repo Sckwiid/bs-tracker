@@ -58,16 +58,31 @@ create table if not exists public.meta_tierlist (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.leaderboard_snapshots (
+  id bigserial primary key,
+  type text not null check (type in ('world', 'ranked', 'esport')),
+  player_tag text not null,
+  last_position integer not null,
+  last_value numeric(12,2) not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (type, player_tag)
+);
+
 create index if not exists idx_history_player_tag_created_at
   on public.history(player_tag, created_at desc);
 
 create index if not exists idx_players_trophies
   on public.players(trophies desc);
 
+create index if not exists idx_leaderboard_snapshots_type_position
+  on public.leaderboard_snapshots(type, last_position);
+
 alter table public.players enable row level security;
 alter table public.history enable row level security;
 alter table public.pro_players enable row level security;
 alter table public.meta_tierlist enable row level security;
+alter table public.leaderboard_snapshots enable row level security;
 
 drop policy if exists "players read all" on public.players;
 create policy "players read all"
@@ -87,4 +102,9 @@ create policy "pro players read all"
 drop policy if exists "meta tierlist read all" on public.meta_tierlist;
 create policy "meta tierlist read all"
   on public.meta_tierlist for select
+  using (true);
+
+drop policy if exists "leaderboard snapshots read all" on public.leaderboard_snapshots;
+create policy "leaderboard snapshots read all"
+  on public.leaderboard_snapshots for select
   using (true);

@@ -2,10 +2,15 @@ import type { Metadata } from "next";
 
 import { LeaderboardCarousel } from "@/components/LeaderboardCarousel";
 import { TagSearchForm } from "@/components/tag-search-form";
-import { BrawlApiError, getPlayer, getTopPlayers } from "@/lib/brawlApi";
-import { extractRankedElo } from "@/lib/metrics";
-import { getTopProPlayersByEarnings } from "@/lib/supabase";
-import { formatRank } from "@/lib/utils";
+import {
+  BrawlApiError,
+  type LeaderboardTrend,
+  compareAndPersistLeaderboard,
+  getTopEsportLeaders,
+  getTopPlayers,
+  getTopRankedPlayers
+} from "@/lib/brawlApi";
+import { formatRank, normalizeTag } from "@/lib/utils";
 
 export const revalidate = 90;
 export const dynamic = "force-dynamic";
@@ -33,7 +38,14 @@ export default async function HomePage() {
   let rankedError: string | null = null;
   let esportError: string | null = null;
 
-  let trophyLeaders: Array<{ tag: string; name: string; rank: number; trophies: number; iconId?: number | null }> = [];
+  let trophyLeaders: Array<{
+    tag: string;
+    name: string;
+    rank: number;
+    trophies: number;
+    iconId?: number | null;
+    trend?: LeaderboardTrend;
+  }> = [];
   let rankedLeaders: Array<{
     tag: string;
     name: string;
@@ -41,6 +53,7 @@ export default async function HomePage() {
     elo: number;
     rankLabel: string;
     iconId?: number | null;
+    trend?: LeaderboardTrend;
   }> = [];
   let esportLeaders: Array<{
     tag: string;
@@ -49,6 +62,7 @@ export default async function HomePage() {
     earningsUsd: number;
     matcherinoUrl: string | null;
     iconId?: number | null;
+    trend?: LeaderboardTrend;
   }> = [];
 
   try {
@@ -70,81 +84,75 @@ export default async function HomePage() {
     }
   }
 
-  if (topPlayers.length > 0) {
-    try {
-      const rankedProfiles = await Promise.all(
-        topPlayers.map(async (entry) => {
-          try {
-            const profile = await getPlayer(entry.tag);
-            const raw = profile as unknown as Record<string, unknown>;
-            const highestRankedRaw = raw.highestRankedTrophies ?? raw.rankedTrophies ?? 0;
-            const highestRanked =
-              typeof highestRankedRaw === "number"
-                ? highestRankedRaw
-                : Number.isFinite(Number(highestRankedRaw))
-                  ? Number(highestRankedRaw)
-                  : 0;
-            const computedElo = extractRankedElo(profile);
-            const elo = computedElo > 0 ? computedElo : Math.max(0, highestRanked);
-            return {
-              tag: entry.tag,
-              name: profile.name || entry.name,
-              elo,
-              iconId: profile.icon?.id ?? entry.icon?.id ?? 28000000
-            };
-          } catch {
-            return {
-              tag: entry.tag,
-              name: entry.name,
-              elo: 0,
-              iconId: entry.icon?.id ?? 28000000
-            };
-          }
-        })
-      );
-
-      rankedLeaders = rankedProfiles
-        .sort((a, b) => b.elo - a.elo)
-        .slice(0, 10)
-        .map((player, index) => ({
-          ...player,
-          rank: index + 1,
-          rankLabel: player.elo > 0 ? formatRank(player.elo) : "Unranked"
-        }));
-    } catch (error) {
-      rankedError = error instanceof Error ? error.message : "Classement indisponible.";
-    }
-  } else if (!topPlayersError) {
-    rankedError = "Classement indisponible.";
+  try {
+    const ranked = await getTopRankedPlayers(10);
+    rankedLeaders = ranked.map((player) => ({
+      tag: player.tag,
+      name: player.name,
+      rank: player.rank,
+      elo: player.score,
+      rankLabel: player.score > 0 ? formatRank(player.score) : "Unranked",
+      iconId: player.icon?.id ?? 28000000
+    }));
+  } catch (error) {
+    rankedError = error instanceof Error ? error.message : "Classement indisponible.";
   }
 
   try {
-    const topEarnings = await getTopProPlayersByEarnings(10);
+    const topEarnings = await getTopEsportLeaders(10);
     if (topEarnings.length === 0) {
       esportError = "Aucune donnée earnings en base `pro_players`.";
     } else {
-      const withIcons = await Promise.all(
-        topEarnings.map(async (pro) => {
-          try {
-            const live = await getPlayer(pro.player_tag);
-            return { pro, iconId: live.icon?.id ?? 28000000 };
-          } catch {
-            return { pro, iconId: 28000000 };
-          }
-        })
-      );
-
-      esportLeaders = withIcons.map(({ pro, iconId }) => ({
-        tag: pro.player_tag,
-        displayName: pro.display_name,
+      esportLeaders = topEarnings.map((pro) => ({
+        tag: pro.tag,
+        displayName: pro.displayName,
         team: pro.team,
-        earningsUsd: Number(pro.matcherino_earnings_usd ?? 0),
-        matcherinoUrl: pro.matcherino_url,
-        iconId
+        earningsUsd: Number(pro.earningsUsd ?? 0),
+        matcherinoUrl: pro.matcherinoUrl,
+        iconId: pro.iconId ?? 28000000
       }));
     }
   } catch (error) {
     esportError = error instanceof Error ? error.message : "Top esport indisponible.";
+  }
+
+  try {
+    const worldTrend = await compareAndPersistLeaderboard(
+      "world",
+      trophyLeaders.map((entry) => ({ playerTag: entry.tag, value: entry.trophies }))
+    );
+    trophyLeaders = trophyLeaders.map((entry) => ({
+      ...entry,
+      trend: worldTrend[normalizeTag(entry.tag)]
+    }));
+  } catch {
+    // Ignore trend failure, keep leaderboard visible.
+  }
+
+  try {
+    const rankedTrend = await compareAndPersistLeaderboard(
+      "ranked",
+      rankedLeaders.map((entry) => ({ playerTag: entry.tag, value: entry.elo }))
+    );
+    rankedLeaders = rankedLeaders.map((entry) => ({
+      ...entry,
+      trend: rankedTrend[normalizeTag(entry.tag)]
+    }));
+  } catch {
+    // Ignore trend failure, keep leaderboard visible.
+  }
+
+  try {
+    const esportTrend = await compareAndPersistLeaderboard(
+      "esport",
+      esportLeaders.map((entry) => ({ playerTag: entry.tag, value: entry.earningsUsd }))
+    );
+    esportLeaders = esportLeaders.map((entry) => ({
+      ...entry,
+      trend: esportTrend[normalizeTag(entry.tag)]
+    }));
+  } catch {
+    // Ignore trend failure, keep leaderboard visible.
   }
 
   return (
