@@ -1,10 +1,11 @@
-import Image from "next/image";
-import Link from "next/link";
 import type { Metadata } from "next";
 
+import { LeaderboardCarousel } from "@/components/LeaderboardCarousel";
 import { TagSearchForm } from "@/components/tag-search-form";
-import { BrawlApiError, getTopPlayers } from "@/lib/brawlApi";
-import { formatNumber } from "@/lib/utils";
+import { BrawlApiError, getPlayer, getTopPlayers } from "@/lib/brawlApi";
+import { extractRankedElo } from "@/lib/metrics";
+import { getTopProPlayersByEarnings } from "@/lib/supabase";
+import { formatRank } from "@/lib/utils";
 
 export const revalidate = 90;
 export const dynamic = "force-dynamic";
@@ -29,9 +30,36 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   let topPlayers: Awaited<ReturnType<typeof getTopPlayers>> = [];
   let topPlayersError: string | null = null;
+  let rankedError: string | null = null;
+  let esportError: string | null = null;
+
+  let trophyLeaders: Array<{ tag: string; name: string; rank: number; trophies: number; iconId?: number | null }> = [];
+  let rankedLeaders: Array<{
+    tag: string;
+    name: string;
+    rank: number;
+    elo: number;
+    rankLabel: string;
+    iconId?: number | null;
+  }> = [];
+  let esportLeaders: Array<{
+    tag: string;
+    displayName: string;
+    team: string;
+    earningsUsd: number;
+    matcherinoUrl: string | null;
+    iconId?: number | null;
+  }> = [];
 
   try {
     topPlayers = await getTopPlayers(10);
+    trophyLeaders = topPlayers.map((player) => ({
+      tag: player.tag,
+      name: player.name,
+      rank: player.rank,
+      trophies: player.trophies,
+      iconId: player.icon?.id ?? 28000000
+    }));
   } catch (error) {
     if (error instanceof BrawlApiError) {
       topPlayersError = `Top 10 indisponible (HTTP ${error.status}).`;
@@ -40,6 +68,83 @@ export default async function HomePage() {
     } else {
       topPlayersError = "Top 10 indisponible (erreur inconnue).";
     }
+  }
+
+  if (topPlayers.length > 0) {
+    try {
+      const rankedProfiles = await Promise.all(
+        topPlayers.map(async (entry) => {
+          try {
+            const profile = await getPlayer(entry.tag);
+            const raw = profile as unknown as Record<string, unknown>;
+            const highestRankedRaw = raw.highestRankedTrophies ?? raw.rankedTrophies ?? 0;
+            const highestRanked =
+              typeof highestRankedRaw === "number"
+                ? highestRankedRaw
+                : Number.isFinite(Number(highestRankedRaw))
+                  ? Number(highestRankedRaw)
+                  : 0;
+            const computedElo = extractRankedElo(profile);
+            const elo = computedElo > 0 ? computedElo : Math.max(0, highestRanked);
+            return {
+              tag: entry.tag,
+              name: profile.name || entry.name,
+              elo,
+              iconId: profile.icon?.id ?? entry.icon?.id ?? 28000000
+            };
+          } catch {
+            return {
+              tag: entry.tag,
+              name: entry.name,
+              elo: 0,
+              iconId: entry.icon?.id ?? 28000000
+            };
+          }
+        })
+      );
+
+      rankedLeaders = rankedProfiles
+        .sort((a, b) => b.elo - a.elo)
+        .slice(0, 10)
+        .map((player, index) => ({
+          ...player,
+          rank: index + 1,
+          rankLabel: player.elo > 0 ? formatRank(player.elo) : "Unranked"
+        }));
+    } catch (error) {
+      rankedError = error instanceof Error ? error.message : "Classement indisponible.";
+    }
+  } else if (!topPlayersError) {
+    rankedError = "Classement indisponible.";
+  }
+
+  try {
+    const topEarnings = await getTopProPlayersByEarnings(10);
+    if (topEarnings.length === 0) {
+      esportError = "Aucune donnée earnings en base `pro_players`.";
+    } else {
+      const withIcons = await Promise.all(
+        topEarnings.map(async (pro) => {
+          try {
+            const live = await getPlayer(pro.player_tag);
+            return { pro, iconId: live.icon?.id ?? 28000000 };
+          } catch {
+            return { pro, iconId: 28000000 };
+          }
+        })
+      );
+
+      esportLeaders = withIcons.map(({ pro, iconId }) => ({
+        tag: pro.player_tag,
+        displayName: pro.display_name,
+        team: pro.team,
+        earningsUsd: Number(pro.matcherino_earnings_usd ?? 0),
+        matcherinoUrl: pro.matcherino_url,
+        iconId
+      }));
+    }
+  } catch (error) {
+    esportError = error instanceof Error ? error.message : "Top esport indisponible.";
   }
 
   return (
@@ -56,43 +161,18 @@ export default async function HomePage() {
         <TagSearchForm className="mt-6" />
       </section>
 
-      <section className="rounded-2xl border border-slate-700/70 bg-surface-800/70 p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white">Top 10 joueurs mondiaux</h2>
-          <span className="text-xs text-slate-400">Source: Brawl Stars API</span>
-        </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          {topPlayers.map((player) => (
-            <Link
-              key={player.tag}
-              href={`/player/${encodeURIComponent(player.tag)}`}
-              className="flex items-center gap-3 rounded-xl border border-slate-700 bg-surface-900/70 p-3 transition hover:border-cyan-400/60"
-            >
-              <div className="text-xl font-black text-neon-cyan">#{player.rank}</div>
-              <div className="relative h-10 w-10 overflow-hidden rounded-full border border-slate-700">
-                <Image
-                  src={`https://cdn.brawlify.com/profile-icons/regular/${player.icon?.id ?? 28000000}.png`}
-                  alt={player.name}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              <div>
-                <p className="font-semibold text-white">{player.name}</p>
-                <p className="text-sm text-slate-300">
-                  {formatNumber(player.trophies)} trophées • {player.tag}
-                </p>
-              </div>
-            </Link>
-          ))}
-          {topPlayers.length === 0 ? (
-            <p className="text-sm text-rose-300">
-              {topPlayersError ??
-                "Top 10 indisponible. Vérifie BRAWL_API_TOKEN, l'accès proxy et la disponibilité de l'API."}
-            </p>
-          ) : null}
-        </div>
-      </section>
+      <LeaderboardCarousel
+        trophyLeaders={trophyLeaders}
+        rankedLeaders={rankedLeaders}
+        esportLeaders={esportLeaders}
+        errors={{
+          trophy:
+            topPlayersError ??
+            "Top 10 indisponible. Vérifie BRAWL_API_TOKEN, l'accès proxy et la disponibilité de l'API.",
+          ranked: rankedError,
+          esport: esportError
+        }}
+      />
     </div>
   );
 }
