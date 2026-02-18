@@ -62,11 +62,16 @@ function computeWinrate(summary: WinrateSummary): WinrateSummary {
 
 function classifyMatchType(battle: BattleItem): MatchType {
   const mode = String(battle.battle?.mode ?? battle.event?.mode ?? "").toLowerCase();
+  const type = String((battle.battle as Record<string, unknown> | undefined)?.type ?? "").toLowerCase();
+  const key = `${mode} ${type}`;
   if (
-    mode.includes("ranked") ||
-    mode.includes("powerleague") ||
-    mode.includes("power league") ||
-    mode.includes("compet")
+    key.includes("ranked") ||
+    key.includes("powerleague") ||
+    key.includes("power league") ||
+    key.includes("soloranked") ||
+    key.includes("solo ranked") ||
+    key.includes("teamranked") ||
+    key.includes("team ranked")
   ) {
     return "ranked";
   }

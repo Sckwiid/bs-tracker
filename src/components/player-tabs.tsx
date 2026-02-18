@@ -69,10 +69,13 @@ export function PlayerTabs({
       : hasMasterHistory
         ? Math.max(8250, Number(highestRankedTrophies ?? 0))
         : 0;
-  const rankedLabel = hasMasterHistory
-    ? formatRank(Math.max(8250, effectiveRankedElo))
-    : formatRank(effectiveRankedElo);
-  const eloDisplay = rankedElo <= 0 && hasMasterHistory ? "Score masqué" : `${Math.max(0, Math.round(effectiveRankedElo))} ELO`;
+  const isSeasonResetMaster = rankedElo === 0 && hasMasterHistory;
+  const rankedLabel = isSeasonResetMaster
+    ? "Reset Saison"
+    : hasMasterHistory
+      ? formatRank(Math.max(8250, effectiveRankedElo))
+      : formatRank(effectiveRankedElo);
+  const eloDisplay = isSeasonResetMaster ? "---" : `${Math.max(0, Math.round(effectiveRankedElo))} ELO`;
 
   return (
     <section className="rounded-2xl border border-slate-700/70 bg-surface-900/70 p-5">
