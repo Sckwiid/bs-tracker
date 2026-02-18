@@ -213,6 +213,25 @@ function rankedScoreFromPlayer(player: Player): number {
   return 0;
 }
 
+function highestRankedScoreFromPlayer(player: Player): number {
+  const raw = player as unknown as Record<string, unknown>;
+  const candidates = [
+    raw.highestRankedTrophies,
+    raw.highest_ranked_trophies,
+    raw.rankedTrophies,
+    raw.ranked_trophies,
+    raw.bestRankedTrophies,
+    raw.bestElo
+  ];
+
+  for (const candidate of candidates) {
+    const parsed = parseNumericScore(candidate);
+    if (parsed > 0) return parsed;
+  }
+
+  return 0;
+}
+
 export async function getTopRankedPlayers(limit = 10): Promise<RankedLeaderboardEntry[]> {
   const candidatePaths = [
     "/rankings/global/players/ranked",
@@ -250,11 +269,13 @@ export async function getTopRankedPlayers(limit = 10): Promise<RankedLeaderboard
     worldTop.map(async (entry) => {
       try {
         const profile = await getPlayer(entry.tag);
+        const highestRankedScore = highestRankedScoreFromPlayer(profile);
         return {
           tag: entry.tag,
           name: profile.name || entry.name,
           rank: entry.rank,
-          score: rankedScoreFromPlayer(profile),
+          // End-of-season fallback: classement simulé par peak classé.
+          score: highestRankedScore,
           icon: { id: profile.icon?.id ?? entry.icon?.id ?? 28000000 }
         } satisfies RankedLeaderboardEntry;
       } catch {

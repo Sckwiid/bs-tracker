@@ -79,13 +79,21 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
     const bundle = await fetchAndStorePlayerSnapshot(tag);
     const player = bundle.player;
     const rawPlayer = player as unknown as Record<string, unknown>;
-    const highestRankedRaw = rawPlayer.highestRankedTrophies ?? rawPlayer.rankedTrophies ?? 0;
+    const highestRankedRaw = rawPlayer.highestRankedTrophies ?? 0;
     const highestRankedTrophies =
       typeof highestRankedRaw === "number"
         ? highestRankedRaw
         : Number.isFinite(Number(highestRankedRaw))
           ? Number(highestRankedRaw)
           : 0;
+    const rankedTrophiesRaw = rawPlayer.rankedTrophies ?? 0;
+    const rankedTrophies =
+      typeof rankedTrophiesRaw === "number"
+        ? rankedTrophiesRaw
+        : Number.isFinite(Number(rankedTrophiesRaw))
+          ? Number(rankedTrophiesRaw)
+          : 0;
+    const peakRankedValue = highestRankedTrophies > 0 ? highestRankedTrophies : Math.max(0, rankedTrophies);
     const effectiveRankedElo =
       bundle.rankedElo > 0 ? bundle.rankedElo : Math.max(0, Number(highestRankedTrophies ?? 0));
     const isUnranked = bundle.rankedElo === 0 && bundle.winrates25.rankedWinrate === null;
@@ -128,7 +136,7 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
             <p className="text-xs uppercase tracking-widest text-slate-400">Ranked</p>
             <p className="mt-2 text-2xl font-bold text-white">{rankedLabel}</p>
             <p className="text-sm text-slate-300">{rankedDetail}</p>
-            <p className="text-sm text-slate-300">Peak classé: {formatNumber(highestRankedTrophies)}</p>
+            <p className="text-sm text-slate-300">Peak classé: {formatNumber(peakRankedValue)}</p>
           </article>
           <article className="rounded-xl border border-slate-700 bg-surface-900/75 p-4">
             <p className="text-xs uppercase tracking-widest text-slate-400">Performance</p>

@@ -121,6 +121,8 @@ export function PlayerTabs({
             <p className="mt-2 text-sm text-slate-200">
               Indice de Performance global: {performanceIndex === null ? "N/A" : `${performanceIndex}%`}
             </p>
+            <p className="text-sm text-slate-300">3v3: {victories3v3}</p>
+            <p className="text-sm text-slate-300">Trophées: {trophiesCurrent}</p>
           </article>
         </div>
       ) : null}
