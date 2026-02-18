@@ -222,7 +222,7 @@ export async function getTopRankedPlayers(limit = 10): Promise<RankedLeaderboard
   for (const path of candidatePaths) {
     try {
       const data = await brawlFetch<BrawlListResponse<Record<string, unknown>>>(path, 120);
-      const parsed = (data.items ?? [])
+      const parsed: RankedLeaderboardEntry[] = (data.items ?? [])
         .map((item, index) => {
           const score = parseNumericScore(item.score ?? item.elo ?? item.rankedScore ?? item.value);
           if (score <= 0) return null;
@@ -231,10 +231,10 @@ export async function getTopRankedPlayers(limit = 10): Promise<RankedLeaderboard
             name: String(item.name ?? "Unknown"),
             rank: Number(item.rank ?? index + 1),
             score,
-            icon: { id: Number((item.icon as { id?: unknown } | undefined)?.id ?? 28000000) }
-          } satisfies RankedLeaderboardEntry;
+            icon: { id: Number((item.icon as any)?.id ?? 28000000) }
+          };
         })
-        .filter(Boolean) as RankedLeaderboardEntry[]
+        .filter((e): e is RankedLeaderboardEntry => !!e)
         .slice(0, limit);
 
       if (parsed.length > 0) return parsed;
