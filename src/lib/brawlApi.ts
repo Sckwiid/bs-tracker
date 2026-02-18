@@ -53,7 +53,7 @@ export interface RankedLeaderboardEntry {
   name: string;
   rank: number;
   score: number;
-  icon?: { id: number };
+  icon?: { id: number } | null;
 }
 
 export interface EsportLeaderboardEntry {
@@ -234,7 +234,7 @@ export async function getTopRankedPlayers(limit = 10): Promise<RankedLeaderboard
             icon: { id: Number((item.icon as { id?: unknown } | undefined)?.id ?? 28000000) }
           } satisfies RankedLeaderboardEntry;
         })
-        .filter((entry): entry is RankedLeaderboardEntry => !!entry)
+        .filter(Boolean) as RankedLeaderboardEntry[]
         .slice(0, limit);
 
       if (parsed.length > 0) return parsed;
