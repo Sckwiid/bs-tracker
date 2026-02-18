@@ -14,7 +14,7 @@ interface BrawlerCardProps {
 export function BrawlerCard({ brawler, name, proVerified = false }: BrawlerCardProps) {
   const gadgets = brawler.gadgets?.length ?? 0;
   const starPowers = brawler.starPowers?.length ?? 0;
-  const dataset = brawlersData as Array<{ id: number; imageUrl: string }>;
+  const dataset = (brawlersData as any).list as Array<{ id: number; imageUrl: string }>;
   const byId = new Map<number, string>(dataset.map((entry) => [Number(entry.id), entry.imageUrl]));
   const defaultImage = byId.get(16000000) ?? "https://cdn.brawlify.com/brawler/16000000.png";
   const primaryImage = byId.get(Number(brawler.id)) ?? defaultImage;

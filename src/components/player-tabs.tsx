@@ -113,11 +113,15 @@ export function PlayerTabs({
               <p className="mt-2 text-sm text-slate-200">
                 Ladder Winrate (25 derniers matchs trophées): {`${ladderValue}%`}
               </p>
-              <p className="text-sm text-slate-200">
-                Indice de Performance: {performanceIndex === null ? "N/A" : `${performanceIndex}%`}
-              </p>
             </article>
           ) : null}
+
+          <article className="rounded-xl border border-slate-700 bg-surface-900 p-4">
+            <h3 className="text-sm uppercase tracking-widest text-slate-400">Statistiques Globales</h3>
+            <p className="mt-2 text-sm text-slate-200">
+              Indice de Performance global: {performanceIndex === null ? "N/A" : `${performanceIndex}%`}
+            </p>
+          </article>
         </div>
       ) : null}
 
