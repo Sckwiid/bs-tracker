@@ -31,7 +31,7 @@ export function modeOfBattle(item: { battle?: { mode?: string }; event?: { mode?
 
 export function formatRank(elo: number): string {
   const value = Number.isFinite(elo) ? Math.max(0, elo) : 0;
-  if (value === 0) return "Non classé";
+  if (value === 0) return "Unranked";
 
   if (value < 250) return "Bronze I";
   if (value < 500) return "Bronze II";

@@ -25,8 +25,9 @@ export function BrawlerGrid({ brawlers, catalog }: BrawlerGridProps) {
   const nameById = new Map<number, string>(
     catalog.map((entry) => [entry.id, localizedName(entry.name) ?? `#${entry.id}`])
   );
+  const dataset = (brawlersData as any).list as Array<{ id: number; imageUrl: string }>;
   const imageById = new Map<number, string>(
-    (brawlersData as Array<{ id: number; imageUrl: string }>).map((entry) => [Number(entry.id), entry.imageUrl])
+    dataset.map((entry) => [Number(entry.id), entry.imageUrl])
   );
   const defaultImage = imageById.get(16000000) ?? "https://cdn.brawlify.com/brawler/16000000.png";
   const ordered = [...brawlers].sort((a, b) => b.trophies - a.trophies);
