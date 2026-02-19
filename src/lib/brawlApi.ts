@@ -197,18 +197,24 @@ function parseNumericScore(value: unknown): number {
 export function extractRankedData(player: any): number {
   if (!player || typeof player !== "object") return 0;
 
-  const directCandidates = [
-    player.highestRankedTrophies,
-    player.rankedTrophies,
-    player.rankedScore,
-    player.elo,
-    player.highest_ranked_trophies,
-    player.ranked_trophies,
-    player.ranked_score,
-    player.rankedElo,
-    player.powerLeagueElo,
-    player.currentElo
-  ];
+  const rankedDebug = {
+    highestRankedTrophies: player.highestRankedTrophies,
+    rankedTrophies: player.rankedTrophies,
+    rankedScore: player.rankedScore,
+    elo: player.elo,
+    highest_ranked_trophies: player.highest_ranked_trophies,
+    ranked_trophies: player.ranked_trophies,
+    ranked_score: player.ranked_score,
+    ranked_elo: player.ranked_elo,
+    rankedElo: player.rankedElo,
+    powerLeagueElo: player.powerLeagueElo,
+    power_league_elo: player.power_league_elo,
+    currentElo: player.currentElo,
+    current_elo: player.current_elo
+  };
+  console.log("RAW RANKED DATA FOR DEBUG:", player.tag, rankedDebug);
+
+  const directCandidates = Object.values(rankedDebug);
 
   let maxValue = 0;
   for (const candidate of directCandidates) {
@@ -216,8 +222,7 @@ export function extractRankedData(player: any): number {
     if (value > maxValue) maxValue = value;
   }
 
-  // Fallback souple: l'API change parfois les clés, on inspecte récursivement
-  // toute valeur numérique dans des clés contenant "ranked", "elo" ou "powerleague".
+  // Fallback souple: l'API change parfois les clés.
   const stack: unknown[] = [player];
   const seen = new Set<unknown>();
 
@@ -237,7 +242,7 @@ export function extractRankedData(player: any): number {
         continue;
       }
 
-      if (/(ranked|elo|powerleague)/i.test(key)) {
+      if (/(highest.?ranked|ranked|elo|power.?league)/i.test(key)) {
         const parsed = parseNumericScore(value);
         if (parsed > maxValue) maxValue = parsed;
       }
