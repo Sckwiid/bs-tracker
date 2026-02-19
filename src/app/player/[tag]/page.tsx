@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PlayerTabs } from "@/components/player-tabs";
-import { BrawlApiError, getPlayer } from "@/lib/brawlApi";
+import { BrawlApiError, extractRankedData, getPlayer } from "@/lib/brawlApi";
 import { fetchAndStorePlayerSnapshot } from "@/lib/snapshots";
 import { formatNumber, formatRank, normalizeTag, toBrawlerSlug } from "@/lib/utils";
 import { BrawlerStat, Player } from "@/types/brawl";
@@ -78,27 +78,22 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
   try {
     const bundle = await fetchAndStorePlayerSnapshot(tag);
     const player = bundle.player;
-    const rawPlayer = player as unknown as Record<string, unknown>;
-    const highestRankedRaw = rawPlayer.highestRankedTrophies ?? 0;
-    const highestRankedTrophies =
-      typeof highestRankedRaw === "number"
-        ? highestRankedRaw
-        : Number.isFinite(Number(highestRankedRaw))
-          ? Number(highestRankedRaw)
-          : 0;
-    const rankedTrophiesRaw = rawPlayer.rankedTrophies ?? 0;
-    const rankedTrophies =
-      typeof rankedTrophiesRaw === "number"
-        ? rankedTrophiesRaw
-        : Number.isFinite(Number(rankedTrophiesRaw))
-          ? Number(rankedTrophiesRaw)
-          : 0;
-    const peakRankedValue = highestRankedTrophies > 0 ? highestRankedTrophies : Math.max(0, rankedTrophies);
-    const effectiveRankedElo =
-      bundle.rankedElo > 0 ? bundle.rankedElo : Math.max(0, Number(highestRankedTrophies ?? 0));
-    const isUnranked = bundle.rankedElo === 0 && bundle.winrates25.rankedWinrate === null;
-    const rankedLabel = isUnranked ? "Non Classé" : formatRank(effectiveRankedElo);
-    const rankedDetail = isUnranked ? "Pas joué cette saison" : `${Math.round(effectiveRankedElo)} ELO`;
+    const peakRankedValue = extractRankedData(player);
+    const historyRankedPeak = bundle.history.reduce((max, row) => {
+      const raw = row.raw_payload;
+      if (!raw || typeof raw !== "object") return max;
+      return Math.max(max, extractRankedData(raw as Record<string, unknown>));
+    }, 0);
+    const bestKnownRanked = Math.max(peakRankedValue, historyRankedPeak);
+    const effectiveRankedElo = bundle.rankedElo > 0 ? bundle.rankedElo : bestKnownRanked;
+    const hasMasterRecord = bestKnownRanked >= 8250;
+    const isUnranked = effectiveRankedElo <= 0 && bundle.winrates25.rankedWinrate === null;
+    const rankedLabel = isUnranked ? "Non Classé" : formatRank(hasMasterRecord ? Math.max(8250, effectiveRankedElo) : effectiveRankedElo);
+    const rankedDetail = isUnranked
+      ? "Pas joué cette saison"
+      : bundle.rankedElo > 0
+        ? `${Math.round(effectiveRankedElo)} ELO`
+        : `Saison reset • pic ${Math.round(bestKnownRanked)} ELO`;
 
     console.log("DEBUG PLAYER DATA:", player);
 
@@ -161,7 +156,7 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
           trophiesCurrent={player.trophies}
           victories3v3={player["3vs3Victories"] ?? 0}
           rankedElo={bundle.rankedElo}
-          highestRankedTrophies={highestRankedTrophies}
+          highestRankedTrophies={bestKnownRanked}
           history={bundle.history}
           proVerified={bundle.isProVerified}
         />

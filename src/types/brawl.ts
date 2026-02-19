@@ -43,6 +43,9 @@ export interface Player {
   name: string;
   trophies: number;
   highestTrophies: number;
+  highestRankedTrophies?: number;
+  rankedTrophies?: number;
+  rankedScore?: number;
   expLevel?: number;
   "3vs3Victories"?: number;
   soloVictories?: number;

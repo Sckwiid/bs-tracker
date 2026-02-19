@@ -194,6 +194,59 @@ function parseNumericScore(value: unknown): number {
   return 0;
 }
 
+export function extractRankedData(player: any): number {
+  if (!player || typeof player !== "object") return 0;
+
+  const directCandidates = [
+    player.highestRankedTrophies,
+    player.rankedTrophies,
+    player.rankedScore,
+    player.elo,
+    player.highest_ranked_trophies,
+    player.ranked_trophies,
+    player.ranked_score,
+    player.rankedElo,
+    player.powerLeagueElo,
+    player.currentElo
+  ];
+
+  let maxValue = 0;
+  for (const candidate of directCandidates) {
+    const value = parseNumericScore(candidate);
+    if (value > maxValue) maxValue = value;
+  }
+
+  // Fallback souple: l'API change parfois les clés, on inspecte récursivement
+  // toute valeur numérique dans des clés contenant "ranked", "elo" ou "powerleague".
+  const stack: unknown[] = [player];
+  const seen = new Set<unknown>();
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current || typeof current !== "object" || seen.has(current)) continue;
+    seen.add(current);
+
+    if (Array.isArray(current)) {
+      for (const value of current) stack.push(value);
+      continue;
+    }
+
+    for (const [key, value] of Object.entries(current as Record<string, unknown>)) {
+      if (value && typeof value === "object") {
+        stack.push(value);
+        continue;
+      }
+
+      if (/(ranked|elo|powerleague)/i.test(key)) {
+        const parsed = parseNumericScore(value);
+        if (parsed > maxValue) maxValue = parsed;
+      }
+    }
+  }
+
+  return maxValue;
+}
+
 function rankedScoreFromPlayer(player: Player): number {
   const raw = player as unknown as Record<string, unknown>;
   const candidates = [
@@ -244,7 +297,9 @@ export async function getTopRankedPlayers(limit = 10): Promise<RankedLeaderboard
       const items = data.items ?? [];
       const parsed = items
         .map((item, index) => {
-          const score = parseNumericScore(item.score ?? item.elo ?? item.rankedScore ?? item.value);
+          const apiScore = parseNumericScore(item.score ?? item.elo ?? item.rankedScore ?? item.value);
+          const extractedScore = extractRankedData(item);
+          const score = Math.max(apiScore, extractedScore);
           if (score <= 0) return null;
           return {
             tag: String(item.tag ?? ""),
@@ -269,7 +324,7 @@ export async function getTopRankedPlayers(limit = 10): Promise<RankedLeaderboard
     worldTop.map(async (entry) => {
       try {
         const profile = await getPlayer(entry.tag);
-        const highestRankedScore = highestRankedScoreFromPlayer(profile);
+        const highestRankedScore = extractRankedData(profile);
         return {
           tag: entry.tag,
           name: profile.name || entry.name,
