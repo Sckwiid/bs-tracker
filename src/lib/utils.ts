@@ -1,4 +1,4 @@
-export const SITE_VERSION = "1.1.9";
+export const SITE_VERSION = "1.1.10";
 
 export function normalizeTag(rawTag: string): string {
   const trimmed = rawTag.trim().toUpperCase().replace(/%23/g, "").replace(/^#/, "");
@@ -57,8 +57,8 @@ export function formatRank(elo: number): string {
   if (value < 7500) return "Légendaire II";
   if (value < 8250) return "Légendaire III";
 
-  if (value < 9250) return "Master I";
-  if (value < 10250) return "Master II";
-  if (value < 11250) return "Master III";
+  if (value < 9250) return "Masters I";
+  if (value < 10250) return "Masters II";
+  if (value < 11250) return "Masters III";
   return "Pro";
 }
