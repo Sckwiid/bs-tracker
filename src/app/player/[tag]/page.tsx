@@ -85,15 +85,15 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
       return Math.max(max, extractRankedData(raw as Record<string, unknown>));
     }, 0);
     const bestKnownRanked = Math.max(peakRankedValue, historyRankedPeak);
-    const effectiveRankedElo = bundle.rankedElo > 0 ? bundle.rankedElo : bestKnownRanked;
-    const hasMasterRecord = bestKnownRanked >= 8250;
-    const forceMasterReset = effectiveRankedElo <= 0 && player.trophies > 30000;
-    const isUnranked = !forceMasterReset && effectiveRankedElo <= 0 && bundle.winrates25.rankedWinrate === null;
-    const rankedLabel = forceMasterReset
-      ? formatRank(8250)
-      : isUnranked
-        ? "Non Classé"
-        : formatRank(hasMasterRecord ? Math.max(8250, effectiveRankedElo) : effectiveRankedElo);
+    const currentRankScore =
+      bundle.rankedElo > 0
+        ? bundle.rankedElo
+        : bestKnownRanked > 0
+          ? bestKnownRanked
+          : player.trophies > 30000
+            ? 8250
+            : 0;
+    const rankedLabel = formatRank(currentRankScore);
 
     console.log("DEBUG PLAYER DATA:", player);
 
@@ -129,8 +129,9 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
           </article>
           <article className="rounded-xl border border-slate-700 bg-surface-900/75 p-4">
             <p className="text-xs uppercase tracking-widest text-slate-400">Ranked</p>
-            <p className="mt-2 text-2xl font-bold text-white">{rankedLabel}</p>
+            <p className="mt-2 text-3xl font-bold text-white">{rankedLabel}</p>
             <p className="text-sm text-slate-300">Meilleur rank : {formatRank(bestKnownRanked)}</p>
+            <p className="text-sm text-slate-300">Peak classé : {formatNumber(bestKnownRanked)}</p>
           </article>
           <article className="rounded-xl border border-slate-700 bg-surface-900/75 p-4">
             <p className="text-xs uppercase tracking-widest text-slate-400">Performance</p>

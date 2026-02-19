@@ -1,4 +1,4 @@
-export const SITE_VERSION = "1.1.7";
+export const SITE_VERSION = "1.1.8";
 
 export function normalizeTag(rawTag: string): string {
   const trimmed = rawTag.trim().toUpperCase().replace(/%23/g, "").replace(/^#/, "");
@@ -31,6 +31,8 @@ export function modeOfBattle(item: { battle?: { mode?: string }; event?: { mode?
 
 export function formatRank(elo: number): string {
   const value = Number.isFinite(elo) ? Math.max(0, elo) : 0;
+  if (value <= 0) return "Non Classé";
+
   if (value < 250) return "Bronze I";
   if (value < 500) return "Bronze II";
   if (value < 750) return "Bronze III";
@@ -55,8 +57,8 @@ export function formatRank(elo: number): string {
   if (value < 7500) return "Légendaire II";
   if (value < 8250) return "Légendaire III";
 
-  if (value < 9250) return "Masters I";
-  if (value < 10250) return "Masters II";
-  if (value < 11250) return "Masters III";
+  if (value < 9250) return "Master I";
+  if (value < 10250) return "Master II";
+  if (value < 11250) return "Master III";
   return "Pro";
 }

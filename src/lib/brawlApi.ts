@@ -181,7 +181,7 @@ export async function getTopPlayers(limit = 10): Promise<PlayerRanking[]> {
   const parsed = (data.items ?? []).map((item) => ({
     ...item,
     rank: Number(item.rank ?? 0),
-    // Important: points affichés = item.trophies (jamais item.rank).
+    // Important: value de leaderboard mondial = item.trophies (jamais item.rank).
     trophies: Number(item.trophies ?? 0)
   }));
 
@@ -252,44 +252,6 @@ export function extractRankedData(player: any): number {
   return maxValue;
 }
 
-function rankedScoreFromPlayer(player: Player): number {
-  const raw = player as unknown as Record<string, unknown>;
-  const candidates = [
-    raw.score,
-    raw.elo,
-    raw.rankedElo,
-    raw.powerLeagueElo,
-    raw.currentElo,
-    raw.rankedScore,
-    raw.highestRankedTrophies,
-    raw.rankedTrophies
-  ];
-  for (const candidate of candidates) {
-    const parsed = parseNumericScore(candidate);
-    if (parsed > 0) return parsed;
-  }
-  return 0;
-}
-
-function highestRankedScoreFromPlayer(player: Player): number {
-  const raw = player as unknown as Record<string, unknown>;
-  const candidates = [
-    raw.highestRankedTrophies,
-    raw.highest_ranked_trophies,
-    raw.rankedTrophies,
-    raw.ranked_trophies,
-    raw.bestRankedTrophies,
-    raw.bestElo
-  ];
-
-  for (const candidate of candidates) {
-    const parsed = parseNumericScore(candidate);
-    if (parsed > 0) return parsed;
-  }
-
-  return 0;
-}
-
 export async function getTopRankedPlayers(limit = 10): Promise<RankedLeaderboardEntry[]> {
   const candidatePaths = [
     "/rankings/global/players/ranked",
@@ -302,7 +264,8 @@ export async function getTopRankedPlayers(limit = 10): Promise<RankedLeaderboard
       const items = data.items ?? [];
       const parsed = items
         .map((item, index) => {
-          const apiScore = parseNumericScore(item.score ?? item.elo ?? item.rankedScore ?? item.value);
+          // Important: value de leaderboard classé = item.score (jamais item.rank).
+          const apiScore = parseNumericScore(item.score ?? item.rankedScore ?? item.elo ?? item.value);
           const extractedScore = extractRankedData(item);
           const score = Math.max(apiScore, extractedScore);
           if (score <= 0) return null;
