@@ -64,11 +64,14 @@ export function PlayerTabs({
   const performanceIndex = trophiesCurrent > 0 ? Number(((victories3v3 * 100) / trophiesCurrent).toFixed(2)) : null;
   const rankedRecordElo = Math.max(0, Number(highestRankedTrophies ?? 0));
   const effectiveRankedElo = rankedElo > 0 ? rankedElo : rankedRecordElo;
-  const isUnranked = effectiveRankedElo <= 0 && rankedValue === null;
-  const rankedLabel = isUnranked ? "Non Classé" : formatRank(effectiveRankedElo);
+  const hasRankedActivity = winrates25.ranked.matches > 0 || rankedValue !== null;
+  const isUnranked = effectiveRankedElo <= 0 && !hasRankedActivity;
+  const rankedLabel = isUnranked ? "Non Classé" : effectiveRankedElo > 0 ? formatRank(effectiveRankedElo) : "Classé";
   const eloDisplay = isUnranked
     ? "Pas joué"
-    : `${Math.max(0, Math.round(effectiveRankedElo))} ELO`;
+    : effectiveRankedElo > 0
+      ? `${Math.max(0, Math.round(effectiveRankedElo))} ELO`
+      : "Score indisponible";
 
   return (
     <section className="rounded-2xl border border-slate-700/70 bg-surface-900/70 p-5">

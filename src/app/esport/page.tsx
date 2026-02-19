@@ -3,7 +3,6 @@ import Link from "next/link";
 
 import { CompareTool } from "@/components/compare-tool";
 import { TopEarningsBoard } from "@/components/top-earnings-board";
-import { PRO_PLAYERS } from "@/data/esport-pros";
 import { getPlayer } from "@/lib/brawlApi";
 import { getTopProPlayersByEarnings } from "@/lib/supabase";
 import { formatNumber } from "@/lib/utils";
@@ -38,24 +37,16 @@ interface DisplayPro {
 }
 
 export default async function EsportPage() {
-  let topEarnings = await getTopProPlayersByEarnings(10).catch(() => []);
+  const topEarnings = await getTopProPlayersByEarnings(10).catch(() => []);
 
   const displayPros: DisplayPro[] =
-    topEarnings.length > 0
-      ? topEarnings.map((pro) => ({
-          tag: pro.player_tag,
-          handle: pro.display_name,
-          team: pro.team,
-          matcherinoUrl: pro.matcherino_url ?? "https://matcherino.com/",
-          earningsUsd: Number(pro.matcherino_earnings_usd ?? 0)
-        }))
-      : PRO_PLAYERS.map((pro) => ({
-          tag: pro.tag,
-          handle: pro.handle,
-          team: pro.team,
-          matcherinoUrl: pro.matcherinoUrl,
-          earningsUsd: pro.earningsUsd
-        }));
+    topEarnings.map((pro) => ({
+      tag: pro.player_tag,
+      handle: pro.display_name,
+      team: pro.team,
+      matcherinoUrl: pro.matcherino_url ?? "https://matcherino.com/",
+      earningsUsd: Number(pro.matcherino_earnings_usd ?? 0)
+    }));
 
   const players = await Promise.all(
     displayPros.map(async (pro) => {
@@ -67,22 +58,6 @@ export default async function EsportPage() {
       }
     })
   );
-
-  if (topEarnings.length === 0) {
-    topEarnings = displayPros.map((pro) => ({
-      id: `fallback-${pro.tag}`,
-      player_tag: pro.tag,
-      display_name: pro.handle,
-      team: pro.team,
-      mercato_status: "signed",
-      matcherino_url: pro.matcherinoUrl,
-      matcherino_earnings_usd: pro.earningsUsd,
-      is_active: true,
-      notes: null,
-      created_at: "",
-      updated_at: ""
-    }));
-  }
 
   return (
     <div className="space-y-6">
@@ -102,6 +77,12 @@ export default async function EsportPage() {
           matcherinoUrl: pro.matcherino_url
         }))}
       />
+
+      {displayPros.length === 0 ? (
+        <section className="rounded-xl border border-slate-700 bg-surface-900/70 p-4 text-sm text-slate-300">
+          Aucune donnée esport disponible dans la table <code>pro_players</code>.
+        </section>
+      ) : null}
 
       <section className="grid gap-3 md:grid-cols-3">
         {players.map((pro) => (

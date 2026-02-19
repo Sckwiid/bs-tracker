@@ -194,6 +194,35 @@ function parseNumericScore(value: unknown): number {
   return 0;
 }
 
+function rankTierFloorFromLabel(value: unknown): number {
+  if (typeof value !== "string") return 0;
+  const normalized = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+  if (!normalized) return 0;
+
+  const level = normalized.includes("iii") || normalized.includes(" 3")
+    ? 3
+    : normalized.includes("ii") || normalized.includes(" 2")
+      ? 2
+      : normalized.includes("i") || normalized.includes(" 1")
+        ? 1
+        : 1;
+
+  if (normalized.includes("pro")) return 11250;
+  if (normalized.includes("master")) return level === 3 ? 10250 : level === 2 ? 9250 : 8250;
+  if (normalized.includes("legend")) return level === 3 ? 7500 : level === 2 ? 6750 : 6000;
+  if (normalized.includes("myth")) return level === 3 ? 5500 : level === 2 ? 5000 : 4500;
+  if (normalized.includes("diam")) return level === 3 ? 4000 : level === 2 ? 3500 : 3000;
+  if (normalized.includes("gold") || normalized.includes("or ")) return level === 3 ? 2500 : level === 2 ? 2000 : 1500;
+  if (normalized.includes("silver") || normalized.includes("argent")) return level === 3 ? 1250 : level === 2 ? 1000 : 750;
+  if (normalized.includes("bronze")) return level === 3 ? 500 : level === 2 ? 250 : 0;
+
+  return 0;
+}
+
 export function extractRankedData(player: any): number {
   if (!player || typeof player !== "object") return 0;
 
@@ -210,7 +239,11 @@ export function extractRankedData(player: any): number {
     powerLeagueElo: player.powerLeagueElo,
     power_league_elo: player.power_league_elo,
     currentElo: player.currentElo,
-    current_elo: player.current_elo
+    current_elo: player.current_elo,
+    rank: player.rank,
+    rankName: player.rankName,
+    rankedTier: player.rankedTier,
+    rankedLeague: player.rankedLeague
   };
   console.log("RAW RANKED DATA FOR DEBUG:", player.tag, rankedDebug);
 
@@ -220,6 +253,8 @@ export function extractRankedData(player: any): number {
   for (const candidate of directCandidates) {
     const value = parseNumericScore(candidate);
     if (value > maxValue) maxValue = value;
+    const tierFloor = rankTierFloorFromLabel(candidate);
+    if (tierFloor > maxValue) maxValue = tierFloor;
   }
 
   // Fallback souple: l'API change parfois les clés.
@@ -242,9 +277,11 @@ export function extractRankedData(player: any): number {
         continue;
       }
 
-      if (/(highest.?ranked|ranked|elo|power.?league)/i.test(key)) {
+      if (/(highest.?ranked|ranked|elo|power.?league|rank|tier|league)/i.test(key)) {
         const parsed = parseNumericScore(value);
         if (parsed > maxValue) maxValue = parsed;
+        const tierFloor = rankTierFloorFromLabel(value);
+        if (tierFloor > maxValue) maxValue = tierFloor;
       }
     }
   }
@@ -253,10 +290,8 @@ export function extractRankedData(player: any): number {
 }
 
 export async function getTopRankedPlayers(limit = 10): Promise<RankedLeaderboardEntry[]> {
-  const candidatePaths = [
-    "/rankings/global/players/ranked",
-    "/rankings/global/players?sort=ranked"
-  ];
+  // Endpoint officiel documenté pour les joueurs.
+  const candidatePaths = ["/rankings/global/players"];
 
   for (const path of candidatePaths) {
     try {
@@ -355,19 +390,8 @@ export async function getTopEsportLeaders(limit = 10): Promise<EsportLeaderboard
     }
   }
 
-  // Fallback simulé réaliste si la base est vide/inaccessible.
-  return [
-    { tag: "#8YQJ2V", displayName: "HMBLE Symantec", team: "HMBLE", matcherinoUrl: "https://matcherino.com/", earningsUsd: 82450, iconId: 28000000 },
-    { tag: "#2P0LYCC", displayName: "SK Pedro", team: "SK", matcherinoUrl: "https://matcherino.com/", earningsUsd: 76820, iconId: 28000000 },
-    { tag: "#9CGUQ9", displayName: "ZETA Achapi", team: "ZETA", matcherinoUrl: "https://matcherino.com/", earningsUsd: 74210, iconId: 28000000 },
-    { tag: "#8RGCQ8", displayName: "Reply iKaoss", team: "Reply", matcherinoUrl: "https://matcherino.com/", earningsUsd: 69800, iconId: 28000000 },
-    { tag: "#2Q2Q2Q", displayName: "Tribe Zoulan", team: "Tribe", matcherinoUrl: "https://matcherino.com/", earningsUsd: 65320, iconId: 28000000 },
-    { tag: "#8P8P8P", displayName: "VN Esports Lukii", team: "VN Esports", matcherinoUrl: "https://matcherino.com/", earningsUsd: 61490, iconId: 28000000 },
-    { tag: "#2A2A2A", displayName: "NAVI Angelboy", team: "NAVI", matcherinoUrl: "https://matcherino.com/", earningsUsd: 58270, iconId: 28000000 },
-    { tag: "#9X9X9X", displayName: "STMN bobby", team: "STMN", matcherinoUrl: "https://matcherino.com/", earningsUsd: 54990, iconId: 28000000 },
-    { tag: "#3C3C3C", displayName: "Totem Maru", team: "Totem", matcherinoUrl: "https://matcherino.com/", earningsUsd: 51740, iconId: 28000000 },
-    { tag: "#7D7D7D", displayName: "FUT Drage", team: "FUT", matcherinoUrl: "https://matcherino.com/", earningsUsd: 48910, iconId: 28000000 }
-  ].slice(0, limit);
+  // Pas de données aléatoires: si la base est vide/inaccessible, on retourne vide.
+  return [];
 }
 
 export async function compareAndPersistLeaderboard(
