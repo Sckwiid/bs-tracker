@@ -11,6 +11,32 @@ interface PlayerPageProps {
   params: { tag: string };
 }
 
+function asNumber(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value))) return Number(value);
+  return 0;
+}
+
+function extractCurrentRankedElo(player: Player): number {
+  const source = player as unknown as Record<string, unknown>;
+  const candidates = [
+    source.elo,
+    source.rankedScore,
+    source.rankedTrophies,
+    source.ranked_score,
+    source.ranked_trophies,
+    source.rankedElo,
+    source.currentElo,
+    source.current_elo
+  ];
+
+  for (const candidate of candidates) {
+    const parsed = asNumber(candidate);
+    if (parsed > 0) return parsed;
+  }
+  return 0;
+}
+
 function brawlerName(name: BrawlerStat["name"], fallback: number): string {
   if (!name) return `brawler-${fallback}`;
   if (typeof name === "string") return name;
@@ -78,16 +104,15 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
   try {
     const bundle = await fetchAndStorePlayerSnapshot(tag);
     const player = bundle.player;
+    const currentRankedElo = extractCurrentRankedElo(player);
     const peakRankedValue = extractRankedData(player);
     const historyRankedPeak = bundle.history.reduce((max, row) => {
       const raw = row.raw_payload;
       if (!raw || typeof raw !== "object") return max;
       return Math.max(max, extractRankedData(raw as Record<string, unknown>));
     }, 0);
-    const bestKnownRanked = Math.max(peakRankedValue, historyRankedPeak);
-    const effectiveRankedElo = bundle.rankedElo > 0 ? bundle.rankedElo : bestKnownRanked;
-    const hasRankedActivity = bundle.winrates25.ranked.matches > 0 || bundle.winrates25.rankedWinrate !== null;
-    const isUnranked = effectiveRankedElo <= 0 && !hasRankedActivity;
+    const bestKnownRanked = Math.max(currentRankedElo, peakRankedValue, historyRankedPeak);
+    const currentRankLabel = currentRankedElo > 0 ? formatRank(currentRankedElo) : "Non Classé";
 
     console.log("DEBUG PLAYER DATA:", player);
 
@@ -123,12 +148,9 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
           </article>
           <article className="rounded-xl border border-slate-700 bg-surface-900/75 p-4">
             <p className="text-xs uppercase tracking-widest text-slate-400">Ranked</p>
-            <p className="mt-2 text-3xl font-bold text-white">
-              {isUnranked ? "Non Classé" : effectiveRankedElo > 0 ? formatRank(effectiveRankedElo) : "Classé"}
-            </p>
+            <p className="mt-2 text-3xl font-bold text-white">{currentRankLabel}</p>
             <p className="text-sm text-slate-300">
-              Meilleur rank :{" "}
-              {bestKnownRanked > 0 ? formatRank(bestKnownRanked) : hasRankedActivity ? "Classé (score indisponible)" : "Aucun record"}
+              Meilleur Rank : {bestKnownRanked > 0 ? formatRank(bestKnownRanked) : "Aucun record"}
             </p>
           </article>
           <article className="rounded-xl border border-slate-700 bg-surface-900/75 p-4">
@@ -153,7 +175,7 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
           estimatedPlaytimeHours={bundle.estimatedPlaytimeHours}
           trophiesCurrent={player.trophies}
           victories3v3={player["3vs3Victories"] ?? 0}
-          rankedElo={bundle.rankedElo}
+          rankedElo={currentRankedElo}
           highestRankedTrophies={bestKnownRanked}
           history={bundle.history}
           proVerified={bundle.isProVerified}
